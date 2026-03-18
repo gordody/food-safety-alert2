@@ -296,7 +296,6 @@
   <header class="detail-nav">
     <button type="button" class="back-button" onclick={goBack} aria-label="Go back">
       <span class="back-chevron" aria-hidden="true">‹</span>
-      Back
     </button>
     <p class="nav-title">Recall Details</p>
   </header>
@@ -386,21 +385,37 @@
 
   .back-button {
     justify-self: start;
-    border: none;
-    background: transparent;
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(60, 60, 67, 0.22);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.72);
     color: #007aff;
-    font-size: 17px;
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    padding: 8px 6px;
+    font-size: 32px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    margin: 0;
     cursor: pointer;
+    backdrop-filter: saturate(180%) blur(10px);
   }
 
   .back-chevron {
-    font-size: 24px;
-    line-height: 0.8;
+    line-height: 1;
+    transform: translateX(-1px);
+  }
+
+  .back-button:focus-visible {
+    outline: 2px solid #007aff;
+    outline-offset: 2px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .back-button {
+      border-color: rgba(84, 84, 88, 0.65);
+      background: rgba(44, 44, 46, 0.78);
+    }
   }
 
   .nav-title {
