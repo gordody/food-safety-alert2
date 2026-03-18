@@ -81,10 +81,10 @@ For Desktop development, run:
 pnpm tauri dev
 
 For Android development, run:
-pnpm tauri android dev
+pnpm android:dev
 
 For iOS development, run:
-pnpm tauri ios dev
+pnpm ios:dev
 
 ## External APIs
 
