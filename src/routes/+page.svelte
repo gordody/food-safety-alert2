@@ -1,209 +1,287 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
-  import { checkPermissions, requestPermissions, getCurrentPosition } from "@tauri-apps/plugin-geolocation";
 
-  let name = $state("");
-  let greetMsg = $state("");
+  type EnforcementAlert = {
+    recall_number: string;
+    recalling_firm: string;
+    product_description: string;
+    reason_for_recall: string;
+    report_date: string;
+    classification: string;
+    status: string;
+    distribution_pattern?: string;
+  };
 
-  let latitude = $state<number | null>(null);
-  let longitude = $state<number | null>(null);
-  let locationError = $state<string | null>(null);
-  let locationLoading = $state(false);
+  type EnforcementResponse = {
+    results: EnforcementAlert[];
+  };
 
-  onMount(async () => {
-    locationLoading = true;
-    try {
-      let perms = await checkPermissions();
-      if (perms.location === "prompt" || perms.location === "prompt-with-rationale") {
-        perms = await requestPermissions(["location"]);
-      }
-      if (perms.location === "granted") {
-        const pos = await getCurrentPosition();
-        latitude = pos.coords.latitude;
-        longitude = pos.coords.longitude;
-      } else {
-        locationError = "Location permission denied.";
-      }
-    } catch (e: unknown) {
-      locationError = e instanceof Error ? e.message : "Could not get location.";
-    } finally {
-      locationLoading = false;
-    }
-  });
+  const OPEN_FDA_BASE_URL = "https://api.fda.gov/food/enforcement.json";
+  const MAX_ALERTS = 20;
 
-  async function greet(event: Event) {
-    event.preventDefault();
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsg = await invoke("greet", { name });
+  let alerts = $state<EnforcementAlert[]>([]);
+  let isLoading = $state(true);
+  let errorMessage = $state("");
+
+  function formatDate(rawDate: string): string {
+    if (!rawDate || rawDate.length !== 8) return "Unknown date";
+
+    const year = Number(rawDate.slice(0, 4));
+    const month = Number(rawDate.slice(4, 6));
+    const day = Number(rawDate.slice(6, 8));
+    const date = new Date(year, month - 1, day);
+
+    if (Number.isNaN(date.getTime())) return "Unknown date";
+
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    });
   }
+
+  async function loadLatestEnforcementAlerts(): Promise<void> {
+    isLoading = true;
+    errorMessage = "";
+
+    try {
+      const apiKey = import.meta.env.PUBLIC_OPEN_FDA_API_KEY;
+      const params = new URLSearchParams({
+        limit: String(MAX_ALERTS),
+        sort: "report_date:desc"
+      });
+
+      if (apiKey) {
+        params.set("api_key", apiKey);
+      }
+
+      const response = await fetch(`${OPEN_FDA_BASE_URL}?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error(`FDA API request failed (${response.status})`);
+      }
+
+      const data: EnforcementResponse = await response.json();
+      alerts = data.results ?? [];
+    } catch (error) {
+      errorMessage = error instanceof Error ? error.message : "Failed to load FDA enforcement alerts.";
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  onMount(() => {
+    void loadLatestEnforcementAlerts();
+  });
 </script>
 
-<main class="container">
-  <h1>Welcome to Tauri + Svelte</h1>
+<main class="screen">
+  <header class="page-header">
+    <p class="eyebrow">Official Data Feed</p>
+    <h1>Food Safety Alerts</h1>
+    <p class="subtitle">Latest FDA food enforcement reports from openFDA.</p>
+  </header>
 
-  <div class="row">
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo vite" alt="Vite Logo" />
-    </a>
-    <a href="https://tauri.app" target="_blank">
-      <img src="/tauri.svg" class="logo tauri" alt="Tauri Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank">
-      <img src="/svelte.svg" class="logo svelte-kit" alt="SvelteKit Logo" />
-    </a>
-  </div>
-  <p>Hello! <br />Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
-
-  <form class="row" onsubmit={greet}>
-    <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
-    <button type="submit">Greet</button>
-  </form>
-  <p>{greetMsg}</p>
-
-  <div class="location">
-    <h2>Your Location</h2>
-    {#if locationLoading}
-      <p>Detecting location…</p>
-    {:else if locationError}
-      <p class="location-error">{locationError}</p>
-    {:else if latitude !== null && longitude !== null}
-      <p>Latitude: <strong>{latitude.toFixed(5)}</strong></p>
-      <p>Longitude: <strong>{longitude.toFixed(5)}</strong></p>
+  <section class="alerts-panel" aria-label="Latest FDA enforcement alerts">
+    {#if isLoading}
+      <p class="status">Loading latest enforcement alerts...</p>
+    {:else if errorMessage}
+      <p class="status error">{errorMessage}</p>
+      <button class="retry" onclick={loadLatestEnforcementAlerts}>Try Again</button>
+    {:else if alerts.length === 0}
+      <p class="status">No enforcement alerts found.</p>
+    {:else}
+      <ul class="alerts-list">
+        {#each alerts as alert (alert.recall_number)}
+          <li class="alert-item">
+            <div class="alert-top-row">
+              <span class="badge">{alert.classification || "Unclassified"}</span>
+              <span class="date">{formatDate(alert.report_date)}</span>
+            </div>
+            <h2>{alert.product_description || "FDA Enforcement Alert"}</h2>
+            <p class="firm">{alert.recalling_firm || "Unknown recalling firm"}</p>
+            <p class="reason">{alert.reason_for_recall || "Reason not provided."}</p>
+            <p class="meta">Recall #{alert.recall_number} · {alert.status || "Status unknown"}</p>
+          </li>
+        {/each}
+      </ul>
     {/if}
-  </div>
+  </section>
+
+  <footer class="page-footer">
+    <button class="customize" type="button">Customize Alerts</button>
+  </footer>
 </main>
 
 <style>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.svelte-kit:hover {
-  filter: drop-shadow(0 0 2em #ff3e00);
-}
-
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
-}
-
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-.location {
-  margin-top: 2em;
-}
-
-.location h2 {
-  font-size: 1.1em;
-  margin-bottom: 0.5em;
-}
-
-.location-error {
-  color: #c0392b;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
+  :global(body) {
+    margin: 0;
+    font-family: "Avenir Next", "Avenir", "Segoe UI", sans-serif;
+    background: linear-gradient(180deg, #f6fbff 0%, #eef5f9 45%, #e5edf3 100%);
+    color: #163248;
   }
 
-  a:hover {
-    color: #24c8db;
+  .screen {
+    min-height: 100svh;
+    max-width: 56rem;
+    margin: 0 auto;
+    padding: 1.25rem 1rem 1.5rem;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 1rem;
   }
 
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
+  .page-header {
+    padding: 0.5rem 0.25rem;
   }
-  button:active {
-    background-color: #0f0f0f69;
-  }
-}
 
+  .eyebrow {
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    color: #2a5f87;
+    font-weight: 700;
+  }
+
+  h1 {
+    margin: 0.25rem 0;
+    font-size: clamp(1.6rem, 5vw, 2.25rem);
+    line-height: 1.1;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: #335f80;
+    font-size: 0.95rem;
+  }
+
+  .alerts-panel {
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid #c7d9e6;
+    border-radius: 16px;
+    backdrop-filter: blur(6px);
+    padding: 0.75rem;
+    overflow: hidden;
+  }
+
+  .alerts-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 62svh;
+    overflow-y: auto;
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .alert-item {
+    background: #fff;
+    border: 1px solid #d3e2ee;
+    border-radius: 12px;
+    padding: 0.8rem;
+    box-shadow: 0 3px 12px rgba(13, 66, 107, 0.08);
+  }
+
+  .alert-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.35rem;
+    gap: 0.5rem;
+  }
+
+  .badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    background: #e8f3fb;
+    color: #1f5f8d;
+    border: 1px solid #c6dded;
+  }
+
+  .date {
+    font-size: 0.8rem;
+    color: #5c7488;
+    white-space: nowrap;
+  }
+
+  h2 {
+    margin: 0.1rem 0 0.35rem;
+    font-size: 1rem;
+    line-height: 1.3;
+    color: #123956;
+  }
+
+  .firm,
+  .reason,
+  .meta {
+    margin: 0.2rem 0;
+    font-size: 0.88rem;
+    line-height: 1.35;
+  }
+
+  .firm {
+    font-weight: 600;
+  }
+
+  .meta {
+    color: #4f6a7f;
+    font-size: 0.8rem;
+  }
+
+  .status {
+    margin: 0.5rem;
+    text-align: center;
+    color: #2b5778;
+  }
+
+  .status.error {
+    color: #a42828;
+  }
+
+  .page-footer {
+    display: flex;
+    justify-content: center;
+  }
+
+  .customize,
+  .retry {
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(120deg, #0f6ba7, #2f8fcb);
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    padding: 0.62rem 1rem;
+    cursor: pointer;
+    box-shadow: 0 8px 22px rgba(22, 95, 146, 0.24);
+  }
+
+  .retry {
+    display: block;
+    margin: 0 auto 0.5rem;
+  }
+
+  .customize:active,
+  .retry:active {
+    transform: translateY(1px);
+  }
+
+  @media (min-width: 700px) {
+    .screen {
+      padding: 1.75rem 1.25rem;
+      gap: 1.1rem;
+    }
+
+    .alerts-panel {
+      padding: 1rem;
+    }
+
+    .alerts-list {
+      max-height: 67svh;
+    }
+  }
 </style>
