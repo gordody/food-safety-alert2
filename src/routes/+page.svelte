@@ -4,7 +4,7 @@
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
   import NavBar from "$lib/components/NavBar.svelte";
   import type { EnforcementAlert } from "$lib/types";
-  import { formatDate } from "$lib/utils";
+  import { extractProductName, formatDate, formatLocation } from "$lib/utils";
 
   let alerts = $state<EnforcementAlert[]>([]);
   let isLoading = $state(true);
@@ -81,9 +81,21 @@
                   </span>
                   <time class="cell-date">{formatDate(alert.report_date)}</time>
                 </div>
-                <p class="cell-headline">{alert.product_description || "FDA Enforcement Alert"}</p>
-                <p class="cell-subhead">{alert.recalling_firm || "Unknown recalling firm"}</p>
-                <p class="cell-body">{alert.reason_for_recall || "Reason not provided."}</p>
+                <p class="cell-headline">{extractProductName(alert.product_description)}</p>
+                <p class="cell-line">
+                  <span class="cell-label">Recall reason:</span>
+                  <span class="cell-value">{alert.reason_for_recall || "Reason not provided."}</span>
+                </p>
+                <p class="cell-line">
+                  <span class="cell-label">Recalling firm:</span>
+                  <span class="cell-value">{alert.recalling_firm || "Unknown recalling firm"}</span>
+                </p>
+                <p class="cell-line">
+                  <span class="cell-label">Location:</span>
+                  <span class="cell-value">
+                    {formatLocation(alert.city, alert.state, alert.country, alert.distribution_pattern)}
+                  </span>
+                </p>
                 <p class="cell-footnote">Recall #{alert.recall_number} · {alert.status || "Status unknown"}</p>
               </div>
               {#if i < alerts.length - 1}
@@ -251,30 +263,32 @@
     line-height: 1.3;
   }
 
-  .cell-subhead {
-    margin: 0 0 3px;
-    font-size: 15px;
-    line-height: 1.3;
-    color: rgba(60, 60, 67, 0.6);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .cell-subhead {
-      color: rgba(235, 235, 245, 0.6);
-    }
-  }
-
-  .cell-body {
-    margin: 0 0 5px;
-    font-size: 15px;
+  .cell-line {
+    margin: 0 0 4px;
+    font-size: 14px;
     line-height: 1.4;
     color: rgba(60, 60, 67, 0.6);
   }
 
   @media (prefers-color-scheme: dark) {
-    .cell-body {
+    .cell-line {
       color: rgba(235, 235, 245, 0.6);
     }
+  }
+
+  .cell-label {
+    font-weight: 600;
+    color: rgba(60, 60, 67, 0.85);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .cell-label {
+      color: rgba(235, 235, 245, 0.85);
+    }
+  }
+
+  .cell-value {
+    margin-left: 4px;
   }
 
   .cell-footnote {

@@ -3,6 +3,9 @@ export type EnforcementAlert = {
   recalling_firm: string;
   product_description: string;
   reason_for_recall: string;
+  city?: string;
+  state?: string;
+  country?: string;
   report_date: string;
   classification: string;
   status: string;
