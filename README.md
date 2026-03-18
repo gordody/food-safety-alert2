@@ -6,6 +6,8 @@ The purpose of the app is to alert users about food, pet food, cosmetics or drug
 ~Note~
 The second iteration of the app could include recalls from the CDC, recalls from generic consumer products like fridges, tv-s, cars, etc.
 
+The app should conform to Apple's HID.
+
 
 ## FDA / USDA alert app UI description
 

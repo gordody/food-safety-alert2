@@ -8,6 +8,14 @@
   let isLoading = $state(true);
   let errorMessage = $state("");
 
+  function classificationVariant(classification: string): "critical" | "warning" | "safe" | "neutral" {
+    const c = classification?.toLowerCase() ?? "";
+    if (c.includes("class iii")) return "safe";
+    if (c.includes("class ii")) return "warning";
+    if (c.includes("class i")) return "critical";
+    return "neutral";
+  }
+
   async function loadLatestEnforcementAlerts(): Promise<void> {
     isLoading = true;
     errorMessage = "";
@@ -43,213 +51,362 @@
   });
 </script>
 
-<main class="screen">
-  <header class="page-header">
-    <p class="eyebrow">Official Data Feed</p>
-    <h1>Food Safety Alerts</h1>
-    <p class="subtitle">Latest FDA food enforcement reports from openFDA.</p>
+<div class="screen">
+  <header class="nav-bar">
+    <p class="nav-eyebrow">Official Data Feed</p>
+    <h1 class="nav-large-title">Food Safety Alerts</h1>
+    <p class="nav-subtitle">Latest FDA food enforcement reports from openFDA.</p>
   </header>
 
-  <section class="alerts-panel" aria-label="Latest FDA enforcement alerts">
+  <main class="content">
     {#if isLoading}
-      <p class="status">Loading latest enforcement alerts...</p>
+      <div class="state-view">
+        <div class="spinner" aria-label="Loading" role="status"></div>
+        <p class="state-label">Loading alerts…</p>
+      </div>
     {:else if errorMessage}
-      <p class="status error">{errorMessage}</p>
-      <button class="retry" onclick={loadLatestEnforcementAlerts}>Try Again</button>
+      <div class="state-view">
+        <p class="state-label state-label--error">{errorMessage}</p>
+        <button class="btn-filled" onclick={loadLatestEnforcementAlerts}>Try Again</button>
+      </div>
     {:else if alerts.length === 0}
-      <p class="status">No enforcement alerts found.</p>
+      <div class="state-view">
+        <p class="state-label">No enforcement alerts found.</p>
+      </div>
     {:else}
-      <ul class="alerts-list">
-        {#each alerts as alert (alert.recall_number)}
-          <li class="alert-item">
-            <div class="alert-top-row">
-              <span class="badge">{alert.classification || "Unclassified"}</span>
-              <span class="date">{formatDate(alert.report_date)}</span>
-            </div>
-            <h2>{alert.product_description || "FDA Enforcement Alert"}</h2>
-            <p class="firm">{alert.recalling_firm || "Unknown recalling firm"}</p>
-            <p class="reason">{alert.reason_for_recall || "Reason not provided."}</p>
-            <p class="meta">Recall #{alert.recall_number} · {alert.status || "Status unknown"}</p>
-          </li>
-        {/each}
-      </ul>
+      <section class="inset-group" aria-label="Latest FDA enforcement alerts">
+        <ul class="cell-list" role="list">
+          {#each alerts as alert, i (alert.recall_number)}
+            <li class="cell">
+              <div class="cell-inner">
+                <div class="cell-row-top">
+                  <span class="badge" data-variant={classificationVariant(alert.classification)}>
+                    {alert.classification || "Unclassified"}
+                  </span>
+                  <time class="cell-date">{formatDate(alert.report_date)}</time>
+                </div>
+                <p class="cell-headline">{alert.product_description || "FDA Enforcement Alert"}</p>
+                <p class="cell-subhead">{alert.recalling_firm || "Unknown recalling firm"}</p>
+                <p class="cell-body">{alert.reason_for_recall || "Reason not provided."}</p>
+                <p class="cell-footnote">Recall #{alert.recall_number} · {alert.status || "Status unknown"}</p>
+              </div>
+              {#if i < alerts.length - 1}
+                <div class="separator" aria-hidden="true"></div>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      </section>
     {/if}
-  </section>
+  </main>
 
-  <footer class="page-footer">
-    <button class="customize" type="button">Customize Alerts</button>
+  <footer class="toolbar">
+    <button class="btn-filled btn-full" type="button">Customize Alerts</button>
   </footer>
-</main>
+</div>
 
 <style>
+  /* ── Global reset & system font ──────────────────────── */
+  :global(*, *::before, *::after) {
+    box-sizing: border-box;
+  }
+
   :global(body) {
     margin: 0;
-    font-family: "Avenir Next", "Avenir", "Segoe UI", sans-serif;
-    background: linear-gradient(180deg, #f6fbff 0%, #eef5f9 45%, #e5edf3 100%);
-    color: #163248;
+    font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background-color: #f2f2f7;
+    color: #000000;
   }
 
+  @media (prefers-color-scheme: dark) {
+    :global(body) {
+      background-color: #1c1c1e;
+      color: #ffffff;
+    }
+  }
+
+  /* ── Screen layout ───────────────────────────────────── */
   .screen {
     min-height: 100svh;
-    max-width: 56rem;
+    max-width: 600px;
     margin: 0 auto;
-    padding: 1.25rem 1rem 1.5rem;
-    display: grid;
-    grid-template-rows: auto 1fr auto;
-    gap: 1rem;
+    display: flex;
+    flex-direction: column;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  .page-header {
-    padding: 0.5rem 0.25rem;
+  /* ── Navigation bar (Large Title) ───────────────────── */
+  .nav-bar {
+    padding: 16px 20px 8px;
   }
 
-  .eyebrow {
-    margin: 0;
+  .nav-eyebrow {
+    margin: 0 0 2px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.72rem;
-    color: #2a5f87;
+    color: #8e8e93;
+  }
+
+  .nav-large-title {
+    margin: 0 0 4px;
+    font-size: 34px;
     font-weight: 700;
-  }
-
-  h1 {
-    margin: 0.25rem 0;
-    font-size: clamp(1.6rem, 5vw, 2.25rem);
     line-height: 1.1;
+    letter-spacing: 0.011em;
   }
 
-  .subtitle {
+  .nav-subtitle {
     margin: 0;
-    color: #335f80;
-    font-size: 0.95rem;
+    font-size: 15px;
+    color: rgba(60, 60, 67, 0.6);
   }
 
-  .alerts-panel {
-    background: rgba(255, 255, 255, 0.75);
-    border: 1px solid #c7d9e6;
-    border-radius: 16px;
-    backdrop-filter: blur(6px);
-    padding: 0.75rem;
+  @media (prefers-color-scheme: dark) {
+    .nav-subtitle {
+      color: rgba(235, 235, 245, 0.6);
+    }
+  }
+
+  /* ── Content area ───────────────────────────────────── */
+  .content {
+    flex: 1;
+    padding-bottom: 8px;
+  }
+
+  /* ── State views (loading / error / empty) ──────────── */
+  .state-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px 24px;
+    gap: 12px;
+  }
+
+  .state-label {
+    margin: 0;
+    font-size: 17px;
+    text-align: center;
+    color: rgba(60, 60, 67, 0.6);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .state-label {
+      color: rgba(235, 235, 245, 0.6);
+    }
+  }
+
+  .state-label--error {
+    color: #ff3b30;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .state-label--error {
+      color: #ff453a;
+    }
+  }
+
+  /* iOS-style activity indicator */
+  .spinner {
+    width: 24px;
+    height: 24px;
+    border: 2.5px solid rgba(0, 122, 255, 0.2);
+    border-top-color: #007aff;
+    border-radius: 50%;
+    animation: spin 0.72s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ── Inset grouped section ──────────────────────────── */
+  .inset-group {
+    margin: 8px 16px 16px;
+    background: #ffffff;
+    border-radius: 10px;
     overflow: hidden;
   }
 
-  .alerts-list {
+  @media (prefers-color-scheme: dark) {
+    .inset-group {
+      background: #2c2c2e;
+    }
+  }
+
+  .cell-list {
     list-style: none;
     margin: 0;
     padding: 0;
-    max-height: 62svh;
-    overflow-y: auto;
-    display: grid;
-    gap: 0.65rem;
   }
 
-  .alert-item {
-    background: #fff;
-    border: 1px solid #d3e2ee;
-    border-radius: 12px;
-    padding: 0.8rem;
-    box-shadow: 0 3px 12px rgba(13, 66, 107, 0.08);
+  /* ── Cell ───────────────────────────────────────────── */
+  .cell {
+    position: relative;
   }
 
-  .alert-top-row {
+  .cell-inner {
+    padding: 12px 16px;
+    min-height: 44px;
+  }
+
+  /* Hairline inset separator */
+  .separator {
+    height: 0.5px;
+    background: rgba(60, 60, 67, 0.29);
+    margin-left: 16px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .separator {
+      background: rgba(84, 84, 88, 0.65);
+    }
+  }
+
+  /* ── Cell typography ────────────────────────────────── */
+  .cell-row-top {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.35rem;
-    gap: 0.5rem;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
   }
 
-  .badge {
-    font-size: 0.72rem;
-    font-weight: 700;
-    border-radius: 999px;
-    padding: 0.15rem 0.55rem;
-    background: #e8f3fb;
-    color: #1f5f8d;
-    border: 1px solid #c6dded;
-  }
-
-  .date {
-    font-size: 0.8rem;
-    color: #5c7488;
-    white-space: nowrap;
-  }
-
-  h2 {
-    margin: 0.1rem 0 0.35rem;
-    font-size: 1rem;
-    line-height: 1.3;
-    color: #123956;
-  }
-
-  .firm,
-  .reason,
-  .meta {
-    margin: 0.2rem 0;
-    font-size: 0.88rem;
-    line-height: 1.35;
-  }
-
-  .firm {
+  .cell-headline {
+    margin: 0 0 3px;
+    font-size: 17px;
     font-weight: 600;
+    line-height: 1.3;
   }
 
-  .meta {
-    color: #4f6a7f;
-    font-size: 0.8rem;
+  .cell-subhead {
+    margin: 0 0 3px;
+    font-size: 15px;
+    line-height: 1.3;
+    color: rgba(60, 60, 67, 0.6);
   }
 
-  .status {
-    margin: 0.5rem;
-    text-align: center;
-    color: #2b5778;
+  @media (prefers-color-scheme: dark) {
+    .cell-subhead {
+      color: rgba(235, 235, 245, 0.6);
+    }
   }
 
-  .status.error {
-    color: #a42828;
+  .cell-body {
+    margin: 0 0 5px;
+    font-size: 15px;
+    line-height: 1.4;
+    color: rgba(60, 60, 67, 0.6);
   }
 
-  .page-footer {
-    display: flex;
+  @media (prefers-color-scheme: dark) {
+    .cell-body {
+      color: rgba(235, 235, 245, 0.6);
+    }
+  }
+
+  .cell-footnote {
+    margin: 0;
+    font-size: 13px;
+    color: rgba(60, 60, 67, 0.3);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .cell-footnote {
+      color: rgba(235, 235, 245, 0.3);
+    }
+  }
+
+  .cell-date {
+    font-size: 13px;
+    color: rgba(60, 60, 67, 0.6);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .cell-date {
+      color: rgba(235, 235, 245, 0.6);
+    }
+  }
+
+  /* ── Classification badge ───────────────────────────── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 4px;
+    padding: 2px 6px;
+    /* neutral fallback */
+    background: rgba(142, 142, 147, 0.12);
+    color: #8e8e93;
+  }
+
+  .badge[data-variant="critical"] {
+    background: rgba(255, 59, 48, 0.12);
+    color: #ff3b30;
+  }
+
+  .badge[data-variant="warning"] {
+    background: rgba(255, 149, 0, 0.12);
+    color: #ff9500;
+  }
+
+  .badge[data-variant="safe"] {
+    background: rgba(52, 199, 89, 0.12);
+    color: #34c759;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .badge { color: #98989d; background: rgba(152, 152, 157, 0.2); }
+    .badge[data-variant="critical"] { color: #ff453a; background: rgba(255, 69, 58, 0.2); }
+    .badge[data-variant="warning"]  { color: #ff9f0a; background: rgba(255, 159, 10, 0.2); }
+    .badge[data-variant="safe"]     { color: #32d74b; background: rgba(50, 215, 75, 0.2); }
+  }
+
+  /* ── Toolbar ────────────────────────────────────────── */
+  .toolbar {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top: 0.5px solid rgba(60, 60, 67, 0.29);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .toolbar {
+      border-top-color: rgba(84, 84, 88, 0.65);
+    }
+  }
+
+  /* ── Buttons ────────────────────────────────────────── */
+  .btn-filled {
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-  }
-
-  .customize,
-  .retry {
     border: none;
-    border-radius: 999px;
-    background: linear-gradient(120deg, #0f6ba7, #2f8fcb);
-    color: #fff;
-    font-size: 0.9rem;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    padding: 0.62rem 1rem;
+    border-radius: 12px;
+    background: #007aff;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    padding: 14px 20px;
+    min-height: 50px;
     cursor: pointer;
-    box-shadow: 0 8px 22px rgba(22, 95, 146, 0.24);
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.1s, transform 0.1s;
   }
 
-  .retry {
-    display: block;
-    margin: 0 auto 0.5rem;
+  .btn-filled:active {
+    opacity: 0.75;
+    transform: scale(0.98);
   }
 
-  .customize:active,
-  .retry:active {
-    transform: translateY(1px);
-  }
-
-  @media (min-width: 700px) {
-    .screen {
-      padding: 1.75rem 1.25rem;
-      gap: 1.1rem;
-    }
-
-    .alerts-panel {
-      padding: 1rem;
-    }
-
-    .alerts-list {
-      max-height: 67svh;
-    }
+  .btn-full {
+    width: 100%;
   }
 </style>
