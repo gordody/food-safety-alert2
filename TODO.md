@@ -10,3 +10,8 @@ x Move utility functions like `formatDate` to their own folder / file
 o Wire each alert item to a dedicated details view route.
 o Add location-aware filtering (state/distribution pattern) before rendering.
 o Connect the Customize Alerts button to a real filter/preferences screen.
+o Detail images
+  x MVP: manual override map + placeholder fallback
+  x Add one external UPC/GTIN image provider + local cache
+  o Add fuzzy matching and confidence scoring
+  o Add background refresh + broken-link revalidation

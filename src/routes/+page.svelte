@@ -2,6 +2,7 @@
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import { loadLatestEnforcementAlerts } from "$lib/api/enforcement";
+  import { prefetchProductImages } from "$lib/api/productImages";
   import AlertList from "$lib/components/AlertList.svelte";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
   import NavBar from "$lib/components/NavBar.svelte";
@@ -29,6 +30,9 @@
     try {
       const apiKey = import.meta.env.PUBLIC_OPEN_FDA_API_KEY;
       alerts = await loadLatestEnforcementAlerts(apiKey);
+
+      // Warm the image cache in the background so detail cards can render images quickly.
+      void prefetchProductImages(alerts);
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : "Failed to load FDA enforcement alerts.";
     } finally {

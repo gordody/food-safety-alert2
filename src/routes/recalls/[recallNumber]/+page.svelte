@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { resolveProductImage } from "$lib/api/productImages";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
   import { recallListContext } from "$lib/stores/recallNavigation";
   import type { EnforcementAlert } from "$lib/types";
@@ -17,6 +18,8 @@
   const navContext = $derived($recallListContext);
   const effectiveAlerts = $derived(navContext?.alerts ?? data.defaultAlerts);
   let activeRecallNumber = $state("");
+  let resolvedImageUrls = $state<Record<string, string | null>>({});
+  let resolvingImages = $state<Record<string, boolean>>({});
 
   $effect(() => {
     activeRecallNumber = data.recallNumber;
@@ -54,6 +57,7 @@
   let viewportWidth = $state(390);
   let touchStartX = 0;
   let touchStartY = 0;
+  let activeCardLayerEl = $state<HTMLDivElement | null>(null);
 
   const SNAP_THRESHOLD = 72; // px — minimum travel to commit
   const SNAP_DURATION = 320; // ms — must match CSS transition below
@@ -63,6 +67,49 @@
     if (peekSide === 1) return nextAlert;
     if (peekSide === -1) return prevAlert;
     return null;
+  });
+
+  function alertImageUrl(alert: EnforcementAlert): string {
+    return resolvedImageUrls[alert.recall_number] ?? fallbackImage;
+  }
+
+  async function ensureImageResolved(alert: EnforcementAlert | null): Promise<void> {
+    if (!alert) return;
+    const key = alert.recall_number;
+
+    if (key in resolvedImageUrls || resolvingImages[key]) return;
+
+    resolvingImages = {
+      ...resolvingImages,
+      [key]: true,
+    };
+
+    try {
+      const resolved = await resolveProductImage(alert);
+      resolvedImageUrls = {
+        ...resolvedImageUrls,
+        [key]: resolved.url,
+      };
+    } catch {
+      resolvedImageUrls = {
+        ...resolvedImageUrls,
+        [key]: null,
+      };
+    } finally {
+      const { [key]: _ignored, ...remaining } = resolvingImages;
+      resolvingImages = remaining;
+    }
+  }
+
+  $effect(() => {
+    void ensureImageResolved(activeAlert);
+    void ensureImageResolved(peekAlert);
+  });
+
+  $effect(() => {
+    // Each newly active recall card should start from the top.
+    activeRecallNumber;
+    activeCardLayerEl?.scrollTo({ top: 0, left: 0, behavior: "auto" });
   });
 
   /** translateX target for the peek card (offscreen at rest, slides in while dragging). */
@@ -197,7 +244,7 @@
   <section class="hero-card" aria-label="Recall overview">
     <img
       class="product-image"
-      src={fallbackImage}
+      src={alertImageUrl(alert)}
       alt={`Product image placeholder for ${extractProductName(alert.product_description)}`}
       loading="lazy"
     />
@@ -265,6 +312,7 @@
       <!-- Active card: follows the finger, snaps or springs back on release. -->
       <div
         class="card-layer"
+        bind:this={activeCardLayerEl}
         style:transform="translateX({dragOffset}px)"
         style:transition={transitionStyle}
       >
