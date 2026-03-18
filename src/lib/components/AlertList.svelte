@@ -7,9 +7,10 @@
     isLoading: boolean;
     errorMessage: string;
     onRetry?: () => void;
+    onSelect?: (alert: EnforcementAlert, index: number) => void;
   }
 
-  const { alerts, isLoading, errorMessage, onRetry }: Props = $props();
+  const { alerts, isLoading, errorMessage, onRetry, onSelect }: Props = $props();
 
   function classificationVariant(classification: string): "critical" | "warning" | "safe" | "neutral" {
     const c = classification?.toLowerCase() ?? "";
@@ -41,7 +42,13 @@
     <ul class="cell-list" role="list">
       {#each alerts as alert, i (alert.recall_number)}
         <li class="cell">
-          <div class="cell-inner">
+          <button
+            type="button"
+            class="cell-button"
+            onclick={() => onSelect?.(alert, i)}
+            aria-label={`Open details for recall ${alert.recall_number}`}
+          >
+            <div class="cell-inner">
             <div class="cell-row-top">
               <span class="badge" data-variant={classificationVariant(alert.classification)}>
                 {alert.classification || "Unclassified"}
@@ -64,7 +71,8 @@
               </span>
             </p>
             <p class="cell-footnote">Recall #{alert.recall_number} · {alert.status || "Status unknown"}</p>
-          </div>
+            </div>
+          </button>
           {#if i < alerts.length - 1}
             <div class="separator" aria-hidden="true"></div>
           {/if}
@@ -145,6 +153,24 @@
   /* ── Cell ───────────────────────────────────────────── */
   .cell {
     position: relative;
+  }
+
+  .cell-button {
+    display: block;
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .cell-button:focus-visible {
+    outline: 2px solid #007aff;
+    outline-offset: -2px;
   }
 
   .cell-inner {

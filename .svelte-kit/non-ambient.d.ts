@@ -29,15 +29,17 @@ declare module "$app/types" {
 	type MatcherParam<M> = M extends (param : string) => param is (infer U extends string) ? U : string;
 
 	export interface AppTypes {
-		RouteId(): "/";
+		RouteId(): "/" | "/recalls" | "/recalls/[recallNumber]";
 		RouteParams(): {
-			
+			"/recalls/[recallNumber]": { recallNumber: string }
 		};
 		LayoutParams(): {
-			"/": Record<string, never>
+			"/": { recallNumber?: string };
+			"/recalls": { recallNumber?: string };
+			"/recalls/[recallNumber]": { recallNumber: string }
 		};
-		Pathname(): "/";
+		Pathname(): "/" | `/recalls/${string}` & {};
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): "/.DS_Store" | "/icons/.DS_Store" | "/icons/all.svg" | "/icons/custom.svg" | "/icons/local.svg" | "/icons/search.svg" | "/svelte.svg" | "/tauri.svg" | "/vite.svg" | string & {};
+		Asset(): "/.DS_Store" | "/icons/.DS_Store" | "/icons/all.svg" | "/icons/custom.svg" | "/icons/local.svg" | "/icons/search.svg" | "/images/product-placeholder.svg" | "/svelte.svg" | "/tauri.svg" | "/vite.svg" | string & {};
 	}
 }

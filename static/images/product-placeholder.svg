@@ -1,0 +1,18 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#D8E8FF"/>
+      <stop offset="1" stop-color="#F5F8FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <rect x="180" y="140" width="840" height="520" rx="48" fill="#FFFFFF"/>
+  <g transform="translate(360 230)">
+    <rect x="0" y="0" width="480" height="340" rx="30" fill="#EFF4FF"/>
+    <path d="M120 270C120 210 170 160 230 160H250C310 160 360 210 360 270V280H120V270Z" fill="#C7D9FF"/>
+    <circle cx="240" cy="125" r="58" fill="#B5CCFF"/>
+  </g>
+  <text x="600" y="705" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="34" fill="#6881B2">
+    Product image unavailable
+  </text>
+</svg>

@@ -2,5 +2,9 @@
 	"/": [
 		"src/routes/+layout.ts",
 		"src/routes/+layout.ts"
+	],
+	"/recalls/[recallNumber]": [
+		"src/routes/recalls/[recallNumber]/+page.ts",
+		"src/routes/+layout.ts"
 	]
 }

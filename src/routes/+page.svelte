@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import { loadLatestEnforcementAlerts } from "$lib/api/enforcement";
   import AlertList from "$lib/components/AlertList.svelte";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
   import NavBar from "$lib/components/NavBar.svelte";
+  import { recallListContext } from "$lib/stores/recallNavigation";
   import type { EnforcementAlert } from "$lib/types";
 
   let alerts = $state<EnforcementAlert[]>([]);
@@ -34,6 +36,11 @@
     }
   }
 
+  async function openRecallDetails(alert: EnforcementAlert): Promise<void> {
+    recallListContext.set({ alerts, sourceRoute: "/" });
+    await goto(`/recalls/${encodeURIComponent(alert.recall_number)}`);
+  }
+
   onMount(() => {
     void refreshAlerts();
   });
@@ -47,7 +54,7 @@
   />
 
   <main class="content">
-    <AlertList {alerts} {isLoading} {errorMessage} onRetry={refreshAlerts} />
+    <AlertList {alerts} {isLoading} {errorMessage} onRetry={refreshAlerts} onSelect={openRecallDetails} />
   </main>
 
   <BottomTabBar items={tabItems} activeItem={activeTab} onSelect={(tabId) => activeTab = tabId as Tab} />
