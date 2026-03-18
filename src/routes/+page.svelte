@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import BottomTabBar from "$lib/components/BottomTabBar.svelte";
+  import NavBar from "$lib/components/NavBar.svelte";
   import type { EnforcementAlert, EnforcementResponse } from "$lib/types";
   import { OPEN_FDA_BASE_URL, MAX_ALERTS } from "$lib/constants";
   import { formatDate } from "$lib/utils";
@@ -7,6 +9,16 @@
   let alerts = $state<EnforcementAlert[]>([]);
   let isLoading = $state(true);
   let errorMessage = $state("");
+
+  type Tab = "all" | "local" | "custom" | "search";
+  let activeTab = $state<Tab>("all");
+
+  const tabItems = [
+    { id: "all", label: "All", icon: "all" },
+    { id: "local", label: "Local", icon: "local" },
+    { id: "custom", label: "Custom", icon: "custom" },
+    { id: "search", label: "Search", icon: "search" }
+  ] as const;
 
   function classificationVariant(classification: string): "critical" | "warning" | "safe" | "neutral" {
     const c = classification?.toLowerCase() ?? "";
@@ -52,11 +64,11 @@
 </script>
 
 <div class="screen">
-  <header class="nav-bar">
-    <p class="nav-eyebrow">Official Data Feed</p>
-    <h1 class="nav-large-title">Food Safety Alerts</h1>
-    <p class="nav-subtitle">Latest FDA food enforcement reports from openFDA.</p>
-  </header>
+  <NavBar
+    eyebrow="Official Data Feed"
+    title="Food Safety Alerts"
+    subtitle="Latest FDA food enforcement reports from openFDA."
+  />
 
   <main class="content">
     {#if isLoading}
@@ -100,9 +112,7 @@
     {/if}
   </main>
 
-  <footer class="toolbar">
-    <button class="btn-filled btn-full" type="button">Customize Alerts</button>
-  </footer>
+  <BottomTabBar items={tabItems} activeItem={activeTab} onSelect={(tabId) => activeTab = tabId as Tab} />
 </div>
 
 <style>
@@ -119,6 +129,11 @@
     color: #000000;
   }
 
+  :global(html),
+  :global(body) {
+    height: 100%;
+  }
+
   @media (prefers-color-scheme: dark) {
     :global(body) {
       background-color: #1c1c1e;
@@ -128,53 +143,22 @@
 
   /* ── Screen layout ───────────────────────────────────── */
   .screen {
-    min-height: 100svh;
+    min-height: 100vh;
+    min-height: 100dvh;
     max-width: 600px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
     padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-
-  /* ── Navigation bar (Large Title) ───────────────────── */
-  .nav-bar {
-    padding: 16px 20px 8px;
-  }
-
-  .nav-eyebrow {
-    margin: 0 0 2px;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #8e8e93;
-  }
-
-  .nav-large-title {
-    margin: 0 0 4px;
-    font-size: 34px;
-    font-weight: 700;
-    line-height: 1.1;
-    letter-spacing: 0.011em;
-  }
-
-  .nav-subtitle {
-    margin: 0;
-    font-size: 15px;
-    color: rgba(60, 60, 67, 0.6);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .nav-subtitle {
-      color: rgba(235, 235, 245, 0.6);
-    }
+    background-color: inherit;
   }
 
   /* ── Content area ───────────────────────────────────── */
   .content {
     flex: 1;
-    padding-bottom: 8px;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* ── State views (loading / error / empty) ──────────── */
@@ -369,44 +353,4 @@
     .badge[data-variant="safe"]     { color: #32d74b; background: rgba(50, 215, 75, 0.2); }
   }
 
-  /* ── Toolbar ────────────────────────────────────────── */
-  .toolbar {
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
-    border-top: 0.5px solid rgba(60, 60, 67, 0.29);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .toolbar {
-      border-top-color: rgba(84, 84, 88, 0.65);
-    }
-  }
-
-  /* ── Buttons ────────────────────────────────────────── */
-  .btn-filled {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    border-radius: 12px;
-    background: #007aff;
-    color: #ffffff;
-    font-family: inherit;
-    font-size: 17px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    padding: 14px 20px;
-    min-height: 50px;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    transition: opacity 0.1s, transform 0.1s;
-  }
-
-  .btn-filled:active {
-    opacity: 0.75;
-    transform: scale(0.98);
-  }
-
-  .btn-full {
-    width: 100%;
-  }
 </style>
