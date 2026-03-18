@@ -1,44 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
-
-  type EnforcementAlert = {
-    recall_number: string;
-    recalling_firm: string;
-    product_description: string;
-    reason_for_recall: string;
-    report_date: string;
-    classification: string;
-    status: string;
-    distribution_pattern?: string;
-  };
-
-  type EnforcementResponse = {
-    results: EnforcementAlert[];
-  };
-
-  const OPEN_FDA_BASE_URL = "https://api.fda.gov/food/enforcement.json";
-  const MAX_ALERTS = 20;
+  import type { EnforcementAlert, EnforcementResponse } from "$lib/types";
+  import { OPEN_FDA_BASE_URL, MAX_ALERTS } from "$lib/constants";
+  import { formatDate } from "$lib/utils";
 
   let alerts = $state<EnforcementAlert[]>([]);
   let isLoading = $state(true);
   let errorMessage = $state("");
-
-  function formatDate(rawDate: string): string {
-    if (!rawDate || rawDate.length !== 8) return "Unknown date";
-
-    const year = Number(rawDate.slice(0, 4));
-    const month = Number(rawDate.slice(4, 6));
-    const day = Number(rawDate.slice(6, 8));
-    const date = new Date(year, month - 1, day);
-
-    if (Number.isNaN(date.getTime())) return "Unknown date";
-
-    return date.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric"
-    });
-  }
 
   async function loadLatestEnforcementAlerts(): Promise<void> {
     isLoading = true;
