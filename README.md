@@ -163,8 +163,6 @@ The available endpoints (each with their own field definition pages) are:
 /v1/compliance_actions Fda — this is the one most relevant to recalls
 /v1/import_refusals CDC
 
-
-
 Given that the FDA DB Allows 1000 requests / day / source IP, individual devices could make 1 query every morning to check for the specified criteria. If a result is found, generate an alert.
 
 
