@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { loadLatestEnforcementAlerts } from "$lib/api/enforcement";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
   import NavBar from "$lib/components/NavBar.svelte";
-  import type { EnforcementAlert, EnforcementResponse } from "$lib/types";
-  import { OPEN_FDA_BASE_URL, MAX_ALERTS } from "$lib/constants";
+  import type { EnforcementAlert } from "$lib/types";
   import { formatDate } from "$lib/utils";
 
   let alerts = $state<EnforcementAlert[]>([]);
@@ -28,29 +28,13 @@
     return "neutral";
   }
 
-  async function loadLatestEnforcementAlerts(): Promise<void> {
+  async function refreshAlerts(): Promise<void> {
     isLoading = true;
     errorMessage = "";
 
     try {
       const apiKey = import.meta.env.PUBLIC_OPEN_FDA_API_KEY;
-      const params = new URLSearchParams({
-        limit: String(MAX_ALERTS),
-        sort: "report_date:desc"
-      });
-
-      if (apiKey) {
-        params.set("api_key", apiKey);
-      }
-
-      const response = await fetch(`${OPEN_FDA_BASE_URL}?${params.toString()}`);
-
-      if (!response.ok) {
-        throw new Error(`FDA API request failed (${response.status})`);
-      }
-
-      const data: EnforcementResponse = await response.json();
-      alerts = data.results ?? [];
+      alerts = await loadLatestEnforcementAlerts(apiKey);
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : "Failed to load FDA enforcement alerts.";
     } finally {
@@ -59,7 +43,7 @@
   }
 
   onMount(() => {
-    void loadLatestEnforcementAlerts();
+    void refreshAlerts();
   });
 </script>
 
@@ -79,7 +63,7 @@
     {:else if errorMessage}
       <div class="state-view">
         <p class="state-label state-label--error">{errorMessage}</p>
-        <button class="btn-filled" onclick={loadLatestEnforcementAlerts}>Try Again</button>
+        <button class="btn-filled" onclick={refreshAlerts}>Try Again</button>
       </div>
     {:else if alerts.length === 0}
       <div class="state-view">
