@@ -6,6 +6,8 @@ The purpose of the app is to alert users about food, pet food, cosmetics or drug
 ~Note~
 The second iteration of the app could include recalls from the CDC, recalls from generic consumer products like fridges, tv-s, cars, etc.
 
+The app should conform to Apple's HID.
+
 
 ## FDA / USDA alert app UI description
 
@@ -79,10 +81,10 @@ For Desktop development, run:
 pnpm tauri dev
 
 For Android development, run:
-pnpm tauri android dev
+pnpm android:dev
 
 For iOS development, run:
-pnpm tauri ios dev
+pnpm ios:dev
 
 ## External APIs
 
@@ -160,8 +162,6 @@ The available endpoints (each with their own field definition pages) are:
 /v1/inspections_citations Recalls.gov
 /v1/compliance_actions Fda — this is the one most relevant to recalls
 /v1/import_refusals CDC
-
-
 
 Given that the FDA DB Allows 1000 requests / day / source IP, individual devices could make 1 query every morning to check for the specified criteria. If a result is found, generate an alert.
 

@@ -1,209 +1,102 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
-  import { checkPermissions, requestPermissions, getCurrentPosition } from "@tauri-apps/plugin-geolocation";
+  import { loadLatestEnforcementAlerts } from "$lib/api/enforcement";
+  import AlertList from "$lib/components/AlertList.svelte";
+  import BottomTabBar from "$lib/components/BottomTabBar.svelte";
+  import NavBar from "$lib/components/NavBar.svelte";
+  import type { EnforcementAlert } from "$lib/types";
 
-  let name = $state("");
-  let greetMsg = $state("");
+  let alerts = $state<EnforcementAlert[]>([]);
+  let isLoading = $state(true);
+  let errorMessage = $state("");
 
-  let latitude = $state<number | null>(null);
-  let longitude = $state<number | null>(null);
-  let locationError = $state<string | null>(null);
-  let locationLoading = $state(false);
+  type Tab = "all" | "local" | "custom" | "search";
+  let activeTab = $state<Tab>("all");
 
-  onMount(async () => {
-    locationLoading = true;
+  const tabItems = [
+    { id: "all", label: "All", icon: "all" },
+    { id: "local", label: "Local", icon: "local" },
+    { id: "custom", label: "Custom", icon: "custom" },
+    { id: "search", label: "Search", icon: "search" }
+  ] as const;
+
+  async function refreshAlerts(): Promise<void> {
+    isLoading = true;
+    errorMessage = "";
+
     try {
-      let perms = await checkPermissions();
-      if (perms.location === "prompt" || perms.location === "prompt-with-rationale") {
-        perms = await requestPermissions(["location"]);
-      }
-      if (perms.location === "granted") {
-        const pos = await getCurrentPosition();
-        latitude = pos.coords.latitude;
-        longitude = pos.coords.longitude;
-      } else {
-        locationError = "Location permission denied.";
-      }
-    } catch (e: unknown) {
-      locationError = e instanceof Error ? e.message : "Could not get location.";
+      const apiKey = import.meta.env.PUBLIC_OPEN_FDA_API_KEY;
+      alerts = await loadLatestEnforcementAlerts(apiKey);
+    } catch (error) {
+      errorMessage = error instanceof Error ? error.message : "Failed to load FDA enforcement alerts.";
     } finally {
-      locationLoading = false;
+      isLoading = false;
     }
-  });
-
-  async function greet(event: Event) {
-    event.preventDefault();
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsg = await invoke("greet", { name });
   }
+
+  onMount(() => {
+    void refreshAlerts();
+  });
 </script>
 
-<main class="container">
-  <h1>Welcome to Tauri + Svelte</h1>
+<div class="screen">
+  <NavBar
+    eyebrow="Official Data Feed"
+    title="Food Safety Alerts"
+    subtitle="Latest FDA food enforcement reports from openFDA."
+  />
 
-  <div class="row">
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo vite" alt="Vite Logo" />
-    </a>
-    <a href="https://tauri.app" target="_blank">
-      <img src="/tauri.svg" class="logo tauri" alt="Tauri Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank">
-      <img src="/svelte.svg" class="logo svelte-kit" alt="SvelteKit Logo" />
-    </a>
-  </div>
-  <p>Hello! <br />Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
+  <main class="content">
+    <AlertList {alerts} {isLoading} {errorMessage} onRetry={refreshAlerts} />
+  </main>
 
-  <form class="row" onsubmit={greet}>
-    <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
-    <button type="submit">Greet</button>
-  </form>
-  <p>{greetMsg}</p>
-
-  <div class="location">
-    <h2>Your Location</h2>
-    {#if locationLoading}
-      <p>Detecting location…</p>
-    {:else if locationError}
-      <p class="location-error">{locationError}</p>
-    {:else if latitude !== null && longitude !== null}
-      <p>Latitude: <strong>{latitude.toFixed(5)}</strong></p>
-      <p>Longitude: <strong>{longitude.toFixed(5)}</strong></p>
-    {/if}
-  </div>
-</main>
+  <BottomTabBar items={tabItems} activeItem={activeTab} onSelect={(tabId) => activeTab = tabId as Tab} />
+</div>
 
 <style>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.svelte-kit:hover {
-  filter: drop-shadow(0 0 2em #ff3e00);
-}
-
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
-}
-
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-.location {
-  margin-top: 2em;
-}
-
-.location h2 {
-  font-size: 1.1em;
-  margin-bottom: 0.5em;
-}
-
-.location-error {
-  color: #c0392b;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
+  /* ── Global reset & system font ──────────────────────── */
+  :global(*, *::before, *::after) {
+    box-sizing: border-box;
   }
 
-  a:hover {
-    color: #24c8db;
+  :global(body) {
+    margin: 0;
+    font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background-color: #f2f2f7;
+    color: #000000;
   }
 
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
+  :global(html),
+  :global(body) {
+    height: 100%;
   }
-  button:active {
-    background-color: #0f0f0f69;
+
+  @media (prefers-color-scheme: dark) {
+    :global(body) {
+      background-color: #1c1c1e;
+      color: #ffffff;
+    }
   }
-}
+
+  /* ── Screen layout ───────────────────────────────────── */
+  .screen {
+    min-height: 100vh;
+    min-height: 100dvh;
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    padding-top: env(safe-area-inset-top, 0px);
+    background-color: inherit;
+  }
+
+  /* ── Content area ───────────────────────────────────── */
+  .content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 
 </style>

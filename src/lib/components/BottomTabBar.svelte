@@ -1,0 +1,114 @@
+<script lang="ts">
+  export type BottomTabBarItem = {
+    id: string;
+    label: string;
+    icon: "all" | "local" | "custom" | "search";
+  };
+
+  type Props = {
+    items: readonly BottomTabBarItem[];
+    activeItem: string;
+    onSelect?: (id: string) => void;
+    ariaLabel?: string;
+  };
+
+  let {
+    items,
+    activeItem,
+    onSelect,
+    ariaLabel = "Main navigation"
+  }: Props = $props();
+
+  function handleSelect(id: string): void {
+    onSelect?.(id);
+  }
+
+  function iconUrl(icon: BottomTabBarItem["icon"]): string {
+    return `/icons/${icon}.svg`;
+  }
+</script>
+
+<nav class="tab-bar" aria-label={ariaLabel}>
+  {#each items as item (item.id)}
+    <button
+      class="tab-item"
+      class:tab-item--active={activeItem === item.id}
+      aria-current={activeItem === item.id ? "page" : undefined}
+      onclick={() => handleSelect(item.id)}
+    >
+      <span class="tab-icon" style={`--tab-icon: url('${iconUrl(item.icon)}')`} aria-hidden="true"></span>
+      <span class="tab-label">{item.label}</span>
+    </button>
+  {/each}
+</nav>
+
+<style>
+  .tab-bar {
+    flex-shrink: 0;
+    display: flex;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    background: rgba(249, 249, 249, 0.94);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-top: 0.5px solid rgba(60, 60, 67, 0.29);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .tab-bar {
+      background: rgba(28, 28, 30, 0.94);
+      border-top-color: rgba(84, 84, 88, 0.65);
+    }
+  }
+
+  .tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 3px;
+    padding: 8px 4px 6px;
+    min-height: 49px;
+    border: none;
+    background: none;
+    font-family: inherit;
+    color: rgba(60, 60, 67, 0.5);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s;
+  }
+
+  .tab-item--active {
+    color: #007aff;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .tab-item {
+      color: rgba(235, 235, 245, 0.45);
+    }
+
+    .tab-item--active {
+      color: #0a84ff;
+    }
+  }
+
+  .tab-icon {
+    display: block;
+    width: 25px;
+    height: 25px;
+    flex-shrink: 0;
+    background-color: currentColor;
+    mask: var(--tab-icon) center / contain no-repeat;
+    -webkit-mask: var(--tab-icon) center / contain no-repeat;
+  }
+
+  .tab-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1;
+  }
+</style>
