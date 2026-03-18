@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import BottomTabBar from "$lib/components/BottomTabBar.svelte";
   import { recallListContext } from "$lib/stores/recallNavigation";
   import type { EnforcementAlert } from "$lib/types";
   import { extractProductName, formatLocation } from "$lib/utils";
@@ -15,15 +16,22 @@
   const fallbackImage = "/images/product-placeholder.svg";
   const navContext = $derived($recallListContext);
   const effectiveAlerts = $derived(navContext?.alerts ?? data.defaultAlerts);
+  let activeRecallNumber = $state("");
+
+  $effect(() => {
+    activeRecallNumber = data.recallNumber;
+  });
 
   const activeAlert = $derived.by(() => {
-    if (data.alert) return data.alert;
-    return navContext?.alerts.find((alert) => alert.recall_number === data.recallNumber) ?? null;
+    const inList = effectiveAlerts.find((a) => a.recall_number === activeRecallNumber);
+    if (inList) return inList;
+    if (data.alert?.recall_number === activeRecallNumber) return data.alert;
+    return null;
   });
 
   const currentIndex = $derived.by(() => {
     if (!activeAlert) return -1;
-    return effectiveAlerts.findIndex((alert) => alert.recall_number === activeAlert.recall_number);
+    return effectiveAlerts.findIndex((a) => a.recall_number === activeAlert.recall_number);
   });
 
   const prevAlert = $derived.by(() => {
@@ -36,47 +44,203 @@
     return effectiveAlerts[currentIndex + 1] ?? null;
   });
 
-  let touchStartX = $state(0);
-  let touchStartY = $state(0);
+  // ─── Drag-follow state ────────────────────────────────────────────────────
+  let dragOffset = $state(0);
+  let isDragging = $state(false);
+  let isSnapping = $state(false);
+  /** 1 = next alert is on the right; -1 = prev alert is on the left; 0 = none */
+  let peekSide = $state<0 | 1 | -1>(0);
+  let dragConfirmed = $state(false);
+  let viewportWidth = $state(390);
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  const SNAP_THRESHOLD = 72; // px — minimum travel to commit
+  const SNAP_DURATION = 320; // ms — must match CSS transition below
+
+  /** The adjacent alert currently peeking in from the edge. */
+  const peekAlert = $derived.by(() => {
+    if (peekSide === 1) return nextAlert;
+    if (peekSide === -1) return prevAlert;
+    return null;
+  });
+
+  /** translateX target for the peek card (offscreen at rest, slides in while dragging). */
+  const peekOffset = $derived(peekSide * viewportWidth + dragOffset);
+
+  const transitionStyle = $derived(
+    isSnapping
+      ? `transform ${SNAP_DURATION}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`
+      : "none",
+  );
+
+  // Non-passive touchmove handler registered via $effect so we can call preventDefault.
+  let screenEl = $state<HTMLElement | null>(null);
+
+  $effect(() => {
+    if (!screenEl) return;
+
+    function handleTouchMove(event: TouchEvent): void {
+      if (!isDragging) return;
+      const touch = event.changedTouches[0];
+      const dx = touch.clientX - touchStartX;
+      const dy = touch.clientY - touchStartY;
+
+      if (!dragConfirmed) {
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
+          dragConfirmed = true;
+        } else if (Math.abs(dy) > 14) {
+          isDragging = false; // vertical scroll wins — cancel drag
+          return;
+        } else {
+          return; // direction not yet determined
+        }
+      }
+
+      event.preventDefault(); // block vertical scroll during confirmed horizontal drag
+
+      dragOffset = dx;
+
+      // Lock in which side the peek card lives once direction is confirmed.
+      if (peekSide === 0) {
+        if (dx < 0 && nextAlert) peekSide = 1;
+        else if (dx > 0 && prevAlert) peekSide = -1;
+      }
+    }
+
+    screenEl.addEventListener("touchmove", handleTouchMove, { passive: false });
+    const el = screenEl;
+    return () => el.removeEventListener("touchmove", handleTouchMove);
+  });
+
+  function onTouchStart(event: TouchEvent): void {
+    const touch = event.changedTouches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    isDragging = true;
+    isSnapping = false;
+    dragOffset = 0;
+    peekSide = 0;
+    dragConfirmed = false;
+  }
+
+  function onTouchEnd(event: TouchEvent): void {
+    if (!isDragging) return;
+    isDragging = false;
+
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - touchStartX;
+    const canGoNext = dx < -SNAP_THRESHOLD && nextAlert != null;
+    const canGoPrev = dx > SNAP_THRESHOLD && prevAlert != null;
+
+    if ((canGoNext || canGoPrev) && peekSide !== 0) {
+      // Commit: active card flies offscreen, peek card animates to centre.
+      isSnapping = true;
+      dragOffset = peekSide * -viewportWidth;
+      const target = peekSide === 1 ? nextAlert : prevAlert;
+
+      setTimeout(() => {
+        if (target) {
+          activeRecallNumber = target.recall_number;
+          window.history.replaceState(
+            window.history.state,
+            "",
+            `/recalls/${encodeURIComponent(target.recall_number)}`,
+          );
+        }
+        dragOffset = 0;
+        peekSide = 0;
+        isSnapping = false;
+        dragConfirmed = false;
+      }, SNAP_DURATION);
+    } else if (dragConfirmed) {
+      // Spring back.
+      isSnapping = true;
+      dragOffset = 0;
+      setTimeout(() => {
+        peekSide = 0;
+        isSnapping = false;
+        dragConfirmed = false;
+      }, SNAP_DURATION);
+    } else {
+      dragOffset = 0;
+      peekSide = 0;
+      dragConfirmed = false;
+    }
+  }
+
+  type Tab = "all" | "local" | "custom" | "search";
+  let activeTab = $state<Tab>("all");
+
+  const tabItems = [
+    { id: "all", label: "All", icon: "all" },
+    { id: "local", label: "Local", icon: "local" },
+    { id: "custom", label: "Custom", icon: "custom" },
+    { id: "search", label: "Search", icon: "search" },
+  ] as const;
 
   async function goBack(): Promise<void> {
     if (history.length > 1) {
       history.back();
       return;
     }
-
     await goto(navContext?.sourceRoute ?? "/");
   }
 
-  async function goToAlert(alert: EnforcementAlert | null): Promise<void> {
-    if (!alert) return;
-    await goto(`/recalls/${encodeURIComponent(alert.recall_number)}`);
-  }
-
-  function onTouchStart(event: TouchEvent): void {
-    const touch = event.changedTouches[0];
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-  }
-
-  function onTouchEnd(event: TouchEvent): void {
-    const touch = event.changedTouches[0];
-    const deltaX = touch.clientX - touchStartX;
-    const deltaY = touch.clientY - touchStartY;
-
-    // Horizontal swipe only when movement is clearly intentional.
-    if (Math.abs(deltaX) < 50 || Math.abs(deltaY) > 40) return;
-
-    if (deltaX < 0) {
-      void goToAlert(nextAlert);
-    } else {
-      void goToAlert(prevAlert);
-    }
+  async function onBottomTabSelect(tabId: string): Promise<void> {
+    activeTab = tabId as Tab;
+    await goto(navContext?.sourceRoute ?? "/");
   }
 </script>
 
+{#snippet cardContent(alert: EnforcementAlert)}
+  <section class="hero-card" aria-label="Recall overview">
+    <img
+      class="product-image"
+      src={fallbackImage}
+      alt={`Product image placeholder for ${extractProductName(alert.product_description)}`}
+      loading="lazy"
+    />
+    <div class="hero-copy">
+      <p class="eyebrow">Recall #{alert.recall_number}</p>
+      <h1 class="product-title">{extractProductName(alert.product_description)}</h1>
+      <p class="status-pill">{alert.status || "Status unknown"}</p>
+    </div>
+  </section>
+
+  <section class="inset-group" aria-label="Recall details">
+    <article class="detail-row">
+      <h2 class="detail-label">Recall reason</h2>
+      <p class="detail-value">{alert.reason_for_recall || "Reason not provided."}</p>
+    </article>
+
+    <article class="detail-row">
+      <h2 class="detail-label">Full product description</h2>
+      <p class="detail-value">{alert.product_description || "Description not provided."}</p>
+    </article>
+
+    <article class="detail-row">
+      <h2 class="detail-label">Recalling firm</h2>
+      <p class="detail-value">{alert.recalling_firm || "Unknown recalling firm"}</p>
+    </article>
+
+    <article class="detail-row">
+      <h2 class="detail-label">Location</h2>
+      <p class="detail-value">
+        {formatLocation(
+          alert.city,
+          alert.state,
+          alert.country,
+          alert.distribution_pattern,
+        )}
+      </p>
+    </article>
+  </section>
+{/snippet}
+
 <div
   class="detail-screen"
+  bind:this={screenEl}
   role="region"
   aria-label="Recall detail page"
   ontouchstart={onTouchStart}
@@ -97,60 +261,30 @@
       <button type="button" class="btn-filled" onclick={goBack}>Return</button>
     </main>
   {:else}
-    <main class="detail-content">
-      <section class="hero-card" aria-label="Recall overview">
-        <img
-          class="product-image"
-          src={fallbackImage}
-          alt={`Product image placeholder for ${extractProductName(activeAlert.product_description)}`}
-          loading="lazy"
-        />
-        <div class="hero-copy">
-          <p class="eyebrow">Recall #{activeAlert.recall_number}</p>
-          <h1 class="product-title">{extractProductName(activeAlert.product_description)}</h1>
-          <p class="status-pill">{activeAlert.status || "Status unknown"}</p>
+    <main class="detail-content" bind:clientWidth={viewportWidth}>
+      <!-- Active card: follows the finger, snaps or springs back on release. -->
+      <div
+        class="card-layer"
+        style:transform="translateX({dragOffset}px)"
+        style:transition={transitionStyle}
+      >
+        {@render cardContent(activeAlert)}
+      </div>
+
+      <!-- Peek card: the adjacent alert revealed as the user drags. -->
+      {#if peekAlert}
+        <div
+          class="card-layer card-layer--peek"
+          aria-hidden="true"
+          style:transform="translateX({peekOffset}px)"
+          style:transition={transitionStyle}
+        >
+          {@render cardContent(peekAlert)}
         </div>
-      </section>
-
-      <section class="inset-group" aria-label="Recall details">
-        <article class="detail-row">
-          <h2 class="detail-label">Recall reason</h2>
-          <p class="detail-value">{activeAlert.reason_for_recall || "Reason not provided."}</p>
-        </article>
-
-        <article class="detail-row">
-          <h2 class="detail-label">Full product description</h2>
-          <p class="detail-value">{activeAlert.product_description || "Description not provided."}</p>
-        </article>
-
-        <article class="detail-row">
-          <h2 class="detail-label">Recalling firm</h2>
-          <p class="detail-value">{activeAlert.recalling_firm || "Unknown recalling firm"}</p>
-        </article>
-
-        <article class="detail-row">
-          <h2 class="detail-label">Location</h2>
-          <p class="detail-value">
-            {formatLocation(
-              activeAlert.city,
-              activeAlert.state,
-              activeAlert.country,
-              activeAlert.distribution_pattern,
-            )}
-          </p>
-        </article>
-      </section>
+      {/if}
     </main>
 
-    <nav class="swipe-nav" aria-label="Recall navigation">
-      <button type="button" class="swipe-btn" onclick={() => goToAlert(prevAlert)} disabled={!prevAlert}>
-        Previous
-      </button>
-      <p class="swipe-hint">Swipe left or right to move between recalls</p>
-      <button type="button" class="swipe-btn" onclick={() => goToAlert(nextAlert)} disabled={!nextAlert}>
-        Next
-      </button>
-    </nav>
+    <BottomTabBar items={tabItems} activeItem={activeTab} onSelect={onBottomTabSelect} />
   {/if}
 </div>
 
@@ -178,6 +312,7 @@
     flex-direction: column;
     padding-top: env(safe-area-inset-top, 0px);
     background: inherit;
+    overflow: hidden; /* clips the peek card that extends beyond the screen edge */
   }
 
   .detail-nav {
@@ -229,9 +364,24 @@
 
   .detail-content {
     flex: 1;
+    min-height: 0;
+    position: relative;
+    overflow: hidden; /* clips the off-screen peek card */
+  }
+
+  .card-layer {
+    position: absolute;
+    inset: 0;
     overflow-y: auto;
-    padding: 12px 16px 16px;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 12px 16px 16px;
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+
+  .card-layer--peek {
+    z-index: 1;
   }
 
   .detail-content--empty {
@@ -240,6 +390,7 @@
     justify-content: center;
     align-items: center;
     gap: 10px;
+    padding: 16px;
   }
 
   .empty-title {
@@ -359,58 +510,6 @@
 
     .detail-value {
       color: rgba(235, 235, 245, 0.9);
-    }
-  }
-
-  .swipe-nav {
-    position: sticky;
-    bottom: 0;
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-    border-top: 0.5px solid rgba(60, 60, 67, 0.29);
-    backdrop-filter: saturate(180%) blur(20px);
-    background: rgba(249, 249, 249, 0.9);
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 10px;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .swipe-nav {
-      border-top-color: rgba(84, 84, 88, 0.65);
-      background: rgba(28, 28, 30, 0.85);
-    }
-  }
-
-  .swipe-btn {
-    min-height: 36px;
-    border: none;
-    background: transparent;
-    color: #007aff;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .swipe-btn:disabled {
-    color: rgba(60, 60, 67, 0.3);
-    cursor: default;
-  }
-
-  .swipe-hint {
-    margin: 0;
-    text-align: center;
-    font-size: 12px;
-    color: rgba(60, 60, 67, 0.55);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .swipe-btn:disabled {
-      color: rgba(235, 235, 245, 0.3);
-    }
-
-    .swipe-hint {
-      color: rgba(235, 235, 245, 0.55);
     }
   }
 
