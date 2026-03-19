@@ -2,20 +2,21 @@
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import { get } from "svelte/store";
-  import { loadLatestEnforcementAlerts } from "$lib/api/enforcement";
+  import { loadLatestEnforcementAlerts, loadLocalizedEnforcementAlerts } from "$lib/api/enforcement";
   import { prefetchProductImages } from "$lib/api/productImages";
   import AlertList from "$lib/components/AlertList.svelte";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
   import LocationBar from "$lib/components/LocationBar.svelte";
   import NavBar from "$lib/components/NavBar.svelte";
-  import { filterAlertsByState } from "$lib/location";
   import { PREF_KEYS, getPreference, setPreference } from "$lib/preferences";
   import { recallListContext } from "$lib/stores/recallNavigation";
   import type { EnforcementAlert } from "$lib/types";
 
-  let alerts = $state<EnforcementAlert[]>([]);
+  let allAlerts = $state<EnforcementAlert[]>([]);
+  let localAlerts = $state<EnforcementAlert[]>([]);
   let isLoading = $state(true);
   let errorMessage = $state("");
+  let localFetchNonce = 0;
 
   type Tab = "all" | "local" | "custom" | "search";
   let activeTab = $state<Tab>("all");
@@ -30,29 +31,59 @@
     { id: "search", label: "Search", icon: "search" }
   ] as const;
 
-  // Alerts displayed in the list — filtered when Local tab is active.
+  // Alerts displayed in the list are sourced by the active tab.
   const displayedAlerts = $derived.by(() => {
-    if (activeTab === "local" && localStateCode) {
-      return filterAlertsByState(alerts, localStateCode);
-    }
-    return alerts;
+    if (activeTab === "local") return localAlerts;
+    return allAlerts;
   });
 
-  async function refreshAlerts(): Promise<void> {
+  async function refreshAllAlerts(): Promise<void> {
     isLoading = true;
     errorMessage = "";
 
     try {
       const apiKey = import.meta.env.PUBLIC_OPEN_FDA_API_KEY;
-      alerts = await loadLatestEnforcementAlerts(apiKey);
+      allAlerts = await loadLatestEnforcementAlerts(apiKey);
 
       // Warm the image cache in the background so detail cards can render images quickly.
-      void prefetchProductImages(alerts);
+      void prefetchProductImages(allAlerts);
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : "Failed to load FDA enforcement alerts.";
     } finally {
       isLoading = false;
     }
+  }
+
+  async function refreshLocalAlerts(stateCode: string): Promise<void> {
+    const normalizedStateCode = stateCode.trim().toUpperCase();
+    if (!normalizedStateCode) {
+      localAlerts = [];
+      return;
+    }
+
+    isLoading = true;
+    errorMessage = "";
+
+    const requestNonce = ++localFetchNonce;
+    try {
+      const apiKey = import.meta.env.PUBLIC_OPEN_FDA_API_KEY;
+      const nextAlerts = await loadLocalizedEnforcementAlerts(normalizedStateCode, apiKey);
+      if (requestNonce !== localFetchNonce) return;
+      localAlerts = nextAlerts;
+      void prefetchProductImages(localAlerts);
+    } catch (error) {
+      if (requestNonce !== localFetchNonce) return;
+      errorMessage = error instanceof Error ? error.message : "Failed to load localized FDA enforcement alerts.";
+    } finally {
+      if (requestNonce === localFetchNonce) {
+        isLoading = false;
+      }
+    }
+  }
+
+  function onLocalStateChange(code: string): void {
+    localStateCode = code;
+    void refreshLocalAlerts(code);
   }
 
   async function openRecallDetails(alert: EnforcementAlert): Promise<void> {
@@ -63,6 +94,17 @@
   function onTabSelect(tabId: string): void {
     activeTab = tabId as Tab;
     void setPreference(PREF_KEYS.activeTab, activeTab);
+
+    if (activeTab === "all") {
+      if (allAlerts.length === 0) {
+        void refreshAllAlerts();
+      }
+      return;
+    }
+
+    if (activeTab === "local") {
+      void refreshLocalAlerts(localStateCode);
+    }
   }
 
   async function restoreLastActiveTab(): Promise<void> {
@@ -80,7 +122,7 @@
 
   onMount(() => {
     void restoreLastActiveTab();
-    void refreshAlerts();
+    void refreshAllAlerts();
   });
 </script>
 
@@ -92,11 +134,17 @@
   />
 
   {#if activeTab === "local"}
-    <LocationBar onStateChange={(code) => { localStateCode = code; }} />
+    <LocationBar onStateChange={onLocalStateChange} />
   {/if}
 
   <main class="content">
-    <AlertList alerts={displayedAlerts} {isLoading} {errorMessage} onRetry={refreshAlerts} onSelect={openRecallDetails} />
+    <AlertList
+      alerts={displayedAlerts}
+      {isLoading}
+      {errorMessage}
+      onRetry={activeTab === "local" ? () => refreshLocalAlerts(localStateCode) : refreshAllAlerts}
+      onSelect={openRecallDetails}
+    />
   </main>
 
   <BottomTabBar items={tabItems} activeItem={activeTab} onSelect={onTabSelect} />

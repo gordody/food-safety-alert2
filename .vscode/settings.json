@@ -2,6 +2,10 @@
   "chat.tools.terminal.autoApprove": {
     "pnpm": true,
     "git check-ignore": true,
-    "true": true
+    "true": true,
+    "/^node -e 'const fetch=global\\.fetch; const state=\"CA\"; const q=\\[`state:\\$\\{state\\}` ,`distribution_pattern:\\\\\"\\*\\$\\{state\\}\\*\\\\\"`,`distribution_pattern:\\\\\"\\*nationwide\\*\\\\\"`,`distribution_pattern:\\\\\"\\*all states\\*\\\\\"`,`distribution_pattern:\\\\\"\\*all 50 states\\*\\\\\"`,`distribution_pattern:\\\\\"\\*united states\\*\\\\\"`\\]\\.join\\(\"\\+OR\\+\"\\); const url=`https://api\\.fda\\.gov/food/enforcement\\.json\\?limit=100&sort=report_date:desc&search=\\$\\{encodeURIComponent\\(q\\)\\}`; fetch\\(url\\)\\.then\\(r=>r\\.json\\(\\)\\)\\.then\\(d=>\\{const arr=d\\.results\\|\\|\\[\\]; const m=new Map\\(\\); for\\(const a of arr\\)\\{const k=\\(a\\.recall_number\\|\\|\"\"\\)\\.trim\\(\\); if\\(!k\\) continue; m\\.set\\(k,\\(m\\.get\\(k\\)\\|\\|0\\)\\+1\\);\\} const dup=\\[\\.\\.\\.m\\.entries\\(\\)\\]\\.filter\\(\\(\\[,c\\]\\)=>c>1\\)\\.sort\\(\\(a,b\\)=>b\\[1\\]-a\\[1\\]\\); console\\.log\\(JSON\\.stringify\\(\\{total:arr\\.length, unique:m\\.size, duplicateRecallNumbers:dup\\.length, topDuplicates:dup\\.slice\\(0,10\\)\\},null,2\\)\\);\\}\\)\\.catch\\(e=>\\{console\\.error\\(e\\); process\\.exit\\(1\\);\\}\\);'$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
   }
 }
