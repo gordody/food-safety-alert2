@@ -1,3 +1,5 @@
+import { load } from '@tauri-apps/plugin-store';
+
 const STORE_FILE = "preferences.json";
 
 export const PREF_KEYS = {
@@ -9,26 +11,24 @@ export const PREF_KEYS = {
 // Import the actual Store type from Tauri for type safety
 type Store = any; // We import this dynamically so use any to avoid build issues
 
+const storeDefaults = {
+  [PREF_KEYS.location]: null,
+  [PREF_KEYS.activeTab]: null,
+  [PREF_KEYS.localAlertsCache]: null,
+};
+
 let storePromise: Promise<Store | null> | null = null;
 
 async function getStore(): Promise<Store | null> {
-  if (typeof window === "undefined") {
-    console.warn("No window object, store not available");
-    return null;
-  }
-
-  if (!("__TAURI__" in window)) {
-    console.info("Not running in Tauri context (use 'tauri dev' instead of 'pnpm dev' to enable persistence)");
-    return null;
-  }
-
   if (!storePromise) {
     storePromise = (async () => {
       try {
-        const { load } = await import("@tauri-apps/plugin-store");
         // Initialize with minimal defaults; the store file will be created automatically
         // in the app data directory if it doesn't exist
-        const store = await load(STORE_FILE);
+        const store = await load(STORE_FILE, { 
+          defaults: storeDefaults,
+          autoSave: 100 
+        });
         console.info("Tauri Store loaded successfully from:", STORE_FILE);
         return store;
       } catch (error) {
