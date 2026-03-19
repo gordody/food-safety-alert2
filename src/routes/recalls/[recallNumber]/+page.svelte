@@ -3,7 +3,7 @@
   import { resolveProductImage } from "$lib/api/productImages";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
   import { PREF_KEYS, setPreference } from "$lib/preferences";
-  import { recallListContext } from "$lib/stores/recallNavigation";
+  import { recallState } from "$lib/stores/recallState.svelte";
   import type { EnforcementAlert } from "$lib/types";
   import { extractProductName, formatLocation } from "$lib/utils";
 
@@ -16,7 +16,7 @@
   const { data }: { data: PageData } = $props();
 
   const fallbackImage = "/images/product-placeholder.svg";
-  const navContext = $derived($recallListContext);
+  const navContext = $derived(recallState.recallListContext);
   const effectiveAlerts = $derived(navContext?.alerts ?? data.defaultAlerts);
   let activeRecallNumber = $state("");
   let resolvedImageUrls = $state<Record<string, string | null>>({});
@@ -244,9 +244,9 @@
   async function onBottomTabSelect(tabId: string): Promise<void> {
     activeTab = tabId as Tab;
     void setPreference(PREF_KEYS.activeTab, activeTab);
-    recallListContext.update((ctx) =>
-      ctx ? { ...ctx, activeTab: tabId } : null,
-    );
+    if (navContext) {
+      recallState.recallListContext = { ...navContext, activeTab: tabId };
+    }
     await goto(navContext?.sourceRoute ?? "/");
   }
 </script>

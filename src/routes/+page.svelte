@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
-  import { get } from "svelte/store";
   import { loadLatestEnforcementAlerts, loadLocalizedEnforcementAlerts } from "$lib/api/enforcement";
   import { prefetchProductImages } from "$lib/api/productImages";
   import AlertList from "$lib/components/AlertList.svelte";
@@ -9,13 +8,12 @@
   import LocationBar from "$lib/components/LocationBar.svelte";
   import NavBar from "$lib/components/NavBar.svelte";
   import { PREF_KEYS, getPreference, setPreference } from "$lib/preferences";
-  import { localAlertsCache } from "$lib/stores/alertsCache";
-  import { recallListContext } from "$lib/stores/recallNavigation";
+  import { recallState } from "$lib/stores/recallState.svelte";
   import type { EnforcementAlert } from "$lib/types";
   import type { LocationPreference } from "$lib/location";
 
   // Read the module-level cache once at instantiation so back-navigation restores state immediately.
-  const initialLocalCache = get(localAlertsCache);
+  const initialLocalCache = recallState.localAlertsCache;
 
   let allAlerts = $state<EnforcementAlert[]>([]);
   let localAlerts = $state<EnforcementAlert[]>(initialLocalCache?.alerts ?? []);
@@ -79,7 +77,7 @@
       const nextAlerts = await loadLocalizedEnforcementAlerts(normalizedStateCode, apiKey);
       if (requestNonce !== localFetchNonce) return;
       localAlerts = nextAlerts;
-      localAlertsCache.set({ stateCode: normalizedStateCode, alerts: nextAlerts });
+      recallState.localAlertsCache = { stateCode: normalizedStateCode, alerts: nextAlerts };
       void prefetchProductImages(localAlerts);
     } catch (error) {
       if (requestNonce !== localFetchNonce) return;
@@ -104,7 +102,7 @@
   }
 
   async function openRecallDetails(alert: EnforcementAlert): Promise<void> {
-    recallListContext.set({ alerts: displayedAlerts, sourceRoute: "/", activeTab });
+    recallState.recallListContext = { alerts: displayedAlerts, sourceRoute: "/", activeTab };
     await goto(`/recalls/${encodeURIComponent(alert.recall_number)}`);
   }
 
@@ -120,7 +118,7 @@
     }
 
     if (activeTab === "local") {
-      const cached = get(localAlertsCache);
+      const cached = recallState.localAlertsCache;
       const normalized = localStateCode.trim().toUpperCase();
       if (normalized && cached?.stateCode === normalized && cached.alerts.length > 0) {
         // Cache hit: restore results immediately without a network round-trip.
@@ -139,7 +137,7 @@
       return;
     }
 
-    const navTab = get(recallListContext)?.activeTab;
+    const navTab = recallState.recallListContext?.activeTab;
     if (navTab) {
       activeTab = navTab as Tab;
     }
@@ -158,7 +156,7 @@
 
     // For the local tab: serve from cache when available, otherwise fetch.
     if (activeTab === "local" && localStateCode) {
-      const cached = get(localAlertsCache);
+      const cached = recallState.localAlertsCache;
       const normalized = localStateCode.trim().toUpperCase();
       if (cached?.stateCode === normalized && cached.alerts.length > 0) {
         localAlerts = cached.alerts;
