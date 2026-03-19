@@ -7,12 +7,14 @@
     type LocationPreference,
   } from "$lib/location";
   import { US_STATES } from "$lib/constants";
+  import { untrack } from "svelte";
 
   type Props = {
     onStateChange: (stateCode: string) => void;
+    initialStateCode?: string;
   };
 
-  const { onStateChange }: Props = $props();
+  const { onStateChange, initialStateCode = "" }: Props = $props();
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -20,7 +22,9 @@
 
   let autoEnabled = $state(false);
   let autoStatus = $state<AutoStatus>("idle");
-  let stateCode = $state("");
+  // untrack: we only want the mount-time snapshot of initialStateCode; stateCode is
+  // independently managed after that (user picks a state, auto-detect runs, etc.).
+  let stateCode = $state(untrack(() => initialStateCode));
   let city = $state<string | undefined>(undefined);
 
   // ── Derived label ──────────────────────────────────────────────────────────
@@ -46,9 +50,13 @@
     const saved = await loadLocationPreference();
     if (saved) {
       autoEnabled = saved.auto;
-      stateCode = saved.stateCode;
       city = saved.city;
-      if (saved.stateCode) onStateChange(saved.stateCode);
+      const savedCode = saved.stateCode ?? "";
+      const codeChanged = savedCode !== stateCode;
+      stateCode = savedCode;
+      // Only fire onStateChange if the preference differs from what the parent already
+      // provided via initialStateCode — avoids a redundant refetch on every mount.
+      if (codeChanged && savedCode) onStateChange(savedCode);
       if (saved.auto) {
         void runAutoDetect({ keepAutoOnFailure: false });
       }

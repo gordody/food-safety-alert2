@@ -9,20 +9,29 @@
   import LocationBar from "$lib/components/LocationBar.svelte";
   import NavBar from "$lib/components/NavBar.svelte";
   import { PREF_KEYS, getPreference, setPreference } from "$lib/preferences";
+  import { localAlertsCache } from "$lib/stores/alertsCache";
   import { recallListContext } from "$lib/stores/recallNavigation";
   import type { EnforcementAlert } from "$lib/types";
+  import type { LocationPreference } from "$lib/location";
+
+  // Read the module-level cache once at instantiation so back-navigation restores state immediately.
+  const initialLocalCache = get(localAlertsCache);
 
   let allAlerts = $state<EnforcementAlert[]>([]);
-  let localAlerts = $state<EnforcementAlert[]>([]);
-  let isLoading = $state(true);
+  let localAlerts = $state<EnforcementAlert[]>(initialLocalCache?.alerts ?? []);
+  let allLoading = $state(true);
+  let localLoading = $state(false);
   let errorMessage = $state("");
   let localFetchNonce = 0;
 
   type Tab = "all" | "local" | "custom" | "search";
   let activeTab = $state<Tab>("all");
 
+  // isLoading reflects only the loading state of the currently active tab.
+  const isLoading = $derived(activeTab === "local" ? localLoading : allLoading);
+
   // State code selected/detected in the Local tab.
-  let localStateCode = $state<string>("");
+  let localStateCode = $state<string>(initialLocalCache?.stateCode ?? "");
 
   const tabItems = [
     { id: "all", label: "All", icon: "all" },
@@ -38,7 +47,7 @@
   });
 
   async function refreshAllAlerts(): Promise<void> {
-    isLoading = true;
+    allLoading = true;
     errorMessage = "";
 
     try {
@@ -50,7 +59,7 @@
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : "Failed to load FDA enforcement alerts.";
     } finally {
-      isLoading = false;
+      allLoading = false;
     }
   }
 
@@ -61,7 +70,7 @@
       return;
     }
 
-    isLoading = true;
+    localLoading = true;
     errorMessage = "";
 
     const requestNonce = ++localFetchNonce;
@@ -70,18 +79,26 @@
       const nextAlerts = await loadLocalizedEnforcementAlerts(normalizedStateCode, apiKey);
       if (requestNonce !== localFetchNonce) return;
       localAlerts = nextAlerts;
+      localAlertsCache.set({ stateCode: normalizedStateCode, alerts: nextAlerts });
       void prefetchProductImages(localAlerts);
     } catch (error) {
       if (requestNonce !== localFetchNonce) return;
       errorMessage = error instanceof Error ? error.message : "Failed to load localized FDA enforcement alerts.";
     } finally {
       if (requestNonce === localFetchNonce) {
-        isLoading = false;
+        localLoading = false;
       }
     }
   }
 
   function onLocalStateChange(code: string): void {
+    const normalized = code.trim().toUpperCase();
+
+    // LocationBar restored the same state the parent already has — use cache if available.
+    if (normalized === localStateCode.trim().toUpperCase() && localAlerts.length > 0) {
+      return;
+    }
+
     localStateCode = code;
     void refreshLocalAlerts(code);
   }
@@ -103,7 +120,15 @@
     }
 
     if (activeTab === "local") {
-      void refreshLocalAlerts(localStateCode);
+      const cached = get(localAlertsCache);
+      const normalized = localStateCode.trim().toUpperCase();
+      if (normalized && cached?.stateCode === normalized && cached.alerts.length > 0) {
+        // Cache hit: restore results immediately without a network round-trip.
+        localAlerts = cached.alerts;
+      } else if (localStateCode) {
+        void refreshLocalAlerts(localStateCode);
+      }
+      // If localStateCode is still empty, LocationBar will call onLocalStateChange when it mounts.
     }
   }
 
@@ -120,8 +145,29 @@
     }
   }
 
-  onMount(() => {
-    void restoreLastActiveTab();
+  onMount(async () => {
+    await restoreLastActiveTab();
+
+    // If localStateCode was not in the in-memory cache, restore it from the persisted preference.
+    if (!localStateCode) {
+      const locPref = await getPreference<LocationPreference>(PREF_KEYS.location);
+      if (locPref?.stateCode) {
+        localStateCode = locPref.stateCode;
+      }
+    }
+
+    // For the local tab: serve from cache when available, otherwise fetch.
+    if (activeTab === "local" && localStateCode) {
+      const cached = get(localAlertsCache);
+      const normalized = localStateCode.trim().toUpperCase();
+      if (cached?.stateCode === normalized && cached.alerts.length > 0) {
+        localAlerts = cached.alerts;
+      } else {
+        void refreshLocalAlerts(localStateCode);
+      }
+    }
+
+    // Always refresh the All-tab data in the background.
     void refreshAllAlerts();
   });
 </script>
@@ -134,7 +180,7 @@
   />
 
   {#if activeTab === "local"}
-    <LocationBar onStateChange={onLocalStateChange} />
+    <LocationBar initialStateCode={localStateCode} onStateChange={onLocalStateChange} />
   {/if}
 
   <main class="content">
