@@ -77,7 +77,10 @@
       const nextAlerts = await loadLocalizedEnforcementAlerts(normalizedStateCode, apiKey);
       if (requestNonce !== localFetchNonce) return;
       localAlerts = nextAlerts;
-      recallState.localAlertsCache = { stateCode: normalizedStateCode, alerts: nextAlerts };
+      const cacheData = { stateCode: normalizedStateCode, alerts: nextAlerts };
+      recallState.localAlertsCache = cacheData;
+      // Persist the cache to Tauri Store so it survives app restart.
+      void setPreference(PREF_KEYS.localAlertsCache, cacheData);
       void prefetchProductImages(localAlerts);
     } catch (error) {
       if (requestNonce !== localFetchNonce) return;
@@ -145,6 +148,12 @@
 
   onMount(async () => {
     await restoreLastActiveTab();
+
+    // Restore the local alerts cache from Tauri Store if available.
+    const cachedData = await getPreference(PREF_KEYS.localAlertsCache);
+    if (cachedData) {
+      recallState.localAlertsCache = cachedData as typeof recallState.localAlertsCache;
+    }
 
     // If localStateCode was not in the in-memory cache, restore it from the persisted preference.
     if (!localStateCode) {

@@ -3,6 +3,7 @@ const STORE_FILE = "preferences.json";
 export const PREF_KEYS = {
   location: "locationPreference",
   activeTab: "activeTab",
+  localAlertsCache: "localAlertsCache",
 } as const;
 
 type TauriStore = {
