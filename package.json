@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "android:dev": "TAURI_DEV_HOST=${TAURI_DEV_HOST:-$(ipconfig getifaddr en0 || ipconfig getifaddr en1)} && [ -n \"$TAURI_DEV_HOST\" ] || (echo 'Could not detect local IP. Set TAURI_DEV_HOST manually.' && exit 1) && echo \"Using TAURI_DEV_HOST=$TAURI_DEV_HOST\" && tauri android dev",
     "ios:dev": "TAURI_DEV_HOST=${TAURI_DEV_HOST:-$(ipconfig getifaddr en0 || ipconfig getifaddr en1)} && [ -n \"$TAURI_DEV_HOST\" ] || (echo 'Could not detect local IP. Set TAURI_DEV_HOST manually.' && exit 1) && echo \"Using TAURI_DEV_HOST=$TAURI_DEV_HOST\" && tauri ios dev",
+    "ios:dev:simulator": "tauri ios dev \"iPhone 17\"",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test": "vitest run",
