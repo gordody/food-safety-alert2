@@ -1,5 +1,5 @@
 import { OPEN_FDA_BASE_URL, MAX_ALERTS } from "$lib/constants";
-import { US_STATES } from "$lib/location";
+import { US_STATES } from "$lib/constants";
 import type { EnforcementAlert, EnforcementResponse } from "$lib/types";
 
 export async function loadLatestEnforcementAlerts(apiKey?: string): Promise<EnforcementAlert[]> {

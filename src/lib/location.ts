@@ -1,61 +1,18 @@
 import type { EnforcementAlert } from "$lib/types";
 import { PREF_KEYS, getPreference, setPreference } from "$lib/preferences";
+import { 
+  OPENSTREETMAP_API_BASE_URL, 
+  OPENSTREETMAP_USER_AGENT, 
+  OPENSTREETMAP_ACCEPT_LANGUAGE, 
+  OPENSTREETMAP_ADDRESS_ISO_FIELD,
+  US_STATES,
+} from "$lib/constants";
+import {
+  checkPermissions,
+  requestPermissions,
+  getCurrentPosition,
+} from '@tauri-apps/plugin-geolocation';
 
-// ── US States ─────────────────────────────────────────────────────────────────
-
-export const US_STATES: { code: string; name: string }[] = [
-  { code: "AL", name: "Alabama" },
-  { code: "AK", name: "Alaska" },
-  { code: "AZ", name: "Arizona" },
-  { code: "AR", name: "Arkansas" },
-  { code: "CA", name: "California" },
-  { code: "CO", name: "Colorado" },
-  { code: "CT", name: "Connecticut" },
-  { code: "DE", name: "Delaware" },
-  { code: "FL", name: "Florida" },
-  { code: "GA", name: "Georgia" },
-  { code: "HI", name: "Hawaii" },
-  { code: "ID", name: "Idaho" },
-  { code: "IL", name: "Illinois" },
-  { code: "IN", name: "Indiana" },
-  { code: "IA", name: "Iowa" },
-  { code: "KS", name: "Kansas" },
-  { code: "KY", name: "Kentucky" },
-  { code: "LA", name: "Louisiana" },
-  { code: "ME", name: "Maine" },
-  { code: "MD", name: "Maryland" },
-  { code: "MA", name: "Massachusetts" },
-  { code: "MI", name: "Michigan" },
-  { code: "MN", name: "Minnesota" },
-  { code: "MS", name: "Mississippi" },
-  { code: "MO", name: "Missouri" },
-  { code: "MT", name: "Montana" },
-  { code: "NE", name: "Nebraska" },
-  { code: "NV", name: "Nevada" },
-  { code: "NH", name: "New Hampshire" },
-  { code: "NJ", name: "New Jersey" },
-  { code: "NM", name: "New Mexico" },
-  { code: "NY", name: "New York" },
-  { code: "NC", name: "North Carolina" },
-  { code: "ND", name: "North Dakota" },
-  { code: "OH", name: "Ohio" },
-  { code: "OK", name: "Oklahoma" },
-  { code: "OR", name: "Oregon" },
-  { code: "PA", name: "Pennsylvania" },
-  { code: "RI", name: "Rhode Island" },
-  { code: "SC", name: "South Carolina" },
-  { code: "SD", name: "South Dakota" },
-  { code: "TN", name: "Tennessee" },
-  { code: "TX", name: "Texas" },
-  { code: "UT", name: "Utah" },
-  { code: "VT", name: "Vermont" },
-  { code: "VA", name: "Virginia" },
-  { code: "WA", name: "Washington" },
-  { code: "WV", name: "West Virginia" },
-  { code: "WI", name: "Wisconsin" },
-  { code: "WY", name: "Wyoming" },
-  { code: "DC", name: "District of Columbia" },
-];
 
 // ── Persistence ─────────────────────────────────────────────────────────────
 
@@ -78,19 +35,34 @@ export async function saveLocationPreference(pref: LocationPreference): Promise<
 
 type Coords = { latitude: number; longitude: number };
 
+function isLocationPermissionGranted(permissionResult: unknown): boolean {
+  const status = (permissionResult as { location?: string } | null)?.location;
+  return status === "granted";
+}
+
+async function ensureTauriLocationPermission(): Promise<boolean> {
+  try {
+    const currentPermissions = await checkPermissions();
+    if (isLocationPermissionGranted(currentPermissions)) {
+      return true;
+    }
+
+    const requestedPermissions = await requestPermissions(['location']);
+    return isLocationPermissionGranted(requestedPermissions);
+  } catch {
+    return false;
+  }
+}
+
 async function getCoords(): Promise<Coords | null> {
   // Prefer the Tauri geolocation plugin when running inside Tauri.
   if (typeof window !== "undefined" && "__TAURI__" in window) {
     try {
-      const geo = await import("@tauri-apps/plugin-geolocation");
-      const perm = await geo.requestPermissions(["location"]);
-      if (
-        perm.location !== "granted" &&
-        perm.location !== "prompt-with-rationale"
-      ) {
+      const hasPermission = await ensureTauriLocationPermission();
+      if (!hasPermission) {
         return null;
       }
-      const pos = await geo.getCurrentPosition();
+      const pos = await getCurrentPosition();
       return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
     } catch {
       return null;
@@ -120,11 +92,11 @@ async function getCoords(): Promise<Coords | null> {
 type GeoResult = { stateCode: string; city?: string };
 
 async function reverseGeocode(lat: number, lon: number): Promise<GeoResult | null> {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
+  const url = `${OPENSTREETMAP_API_BASE_URL}?format=json&lat=${lat}&lon=${lon}&zoom=10`;
   const response = await fetch(url, {
     headers: {
-      "Accept-Language": "en-US,en",
-      "User-Agent": "FoodSafetyAlertApp/1.0",
+      "Accept-Language": OPENSTREETMAP_ACCEPT_LANGUAGE,
+      "User-Agent": OPENSTREETMAP_USER_AGENT,
     },
   });
   if (!response.ok) return null;
@@ -135,7 +107,7 @@ async function reverseGeocode(lat: number, lon: number): Promise<GeoResult | nul
   const addr = data.address ?? {};
 
   // ISO3166-2-lvl4 = "US-CA" for California.
-  const iso = addr["ISO3166-2-lvl4"];
+  const iso = addr[OPENSTREETMAP_ADDRESS_ISO_FIELD];
   let stateCode: string | null = null;
   if (iso?.startsWith("US-")) {
     stateCode = iso.slice(3);

@@ -1,12 +1,12 @@
 <script lang="ts">
   import {
-    US_STATES,
     buildLocationLabel,
     detectLocation,
     loadLocationPreference,
     saveLocationPreference,
     type LocationPreference,
   } from "$lib/location";
+  import { US_STATES } from "$lib/constants";
 
   type Props = {
     onStateChange: (stateCode: string) => void;
@@ -50,18 +50,18 @@
       city = saved.city;
       if (saved.stateCode) onStateChange(saved.stateCode);
       if (saved.auto) {
-        void runAutoDetect();
+        void runAutoDetect({ keepAutoOnFailure: false });
       }
       return;
     }
 
     autoEnabled = true;
-    void runAutoDetect();
+    void runAutoDetect({ keepAutoOnFailure: false });
   }
 
   // ── Auto-detect ────────────────────────────────────────────────────────────
 
-  async function runAutoDetect(): Promise<void> {
+  async function runAutoDetect(options: { keepAutoOnFailure: boolean }): Promise<void> {
     autoStatus = "detecting";
     const result = await detectLocation();
     if (result) {
@@ -72,7 +72,9 @@
       onStateChange(stateCode);
     } else {
       autoStatus = "failed";
-      autoEnabled = false;
+      if (!options.keepAutoOnFailure) {
+        autoEnabled = false;
+      }
       void persist();
     }
   }
@@ -80,7 +82,9 @@
   function toggleAuto(enabled: boolean): void {
     autoEnabled = enabled;
     if (enabled) {
-      void runAutoDetect();
+      // When users manually turn Auto back on, keep it on even if permission is denied.
+      // This allows future permission grants to be retried from the same control.
+      void runAutoDetect({ keepAutoOnFailure: true });
     } else {
       autoStatus = "idle";
       void persist();
