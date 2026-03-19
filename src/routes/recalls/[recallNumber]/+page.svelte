@@ -396,14 +396,13 @@
     display: grid;
     place-items: center;
     padding: 0;
-    margin: 0;
     cursor: pointer;
     backdrop-filter: saturate(180%) blur(10px);
   }
 
   .back-chevron {
     line-height: 1;
-    transform: translateX(-1px);
+    transform: translate(-1px, -2px);
   }
 
   .back-button:focus-visible {
