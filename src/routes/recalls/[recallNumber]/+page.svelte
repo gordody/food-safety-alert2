@@ -2,6 +2,7 @@
   import { goto } from "$app/navigation";
   import { resolveProductImage } from "$lib/api/productImages";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
+  import { PREF_KEYS, setPreference } from "$lib/preferences";
   import { recallListContext } from "$lib/stores/recallNavigation";
   import type { EnforcementAlert } from "$lib/types";
   import { extractProductName, formatLocation } from "$lib/utils";
@@ -242,6 +243,7 @@
 
   async function onBottomTabSelect(tabId: string): Promise<void> {
     activeTab = tabId as Tab;
+    void setPreference(PREF_KEYS.activeTab, activeTab);
     recallListContext.update((ctx) =>
       ctx ? { ...ctx, activeTab: tabId } : null,
     );

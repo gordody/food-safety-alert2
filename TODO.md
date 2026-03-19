@@ -5,12 +5,12 @@ x Extract the bottom tab bar into its own reusable component
 o Wire the All, Local, Custom, and Search tabs to real behavior
   x All tab
   o Local Tab - filter for Local alerts
-    o after the navbar, there is a location bar. 
-    o the location bar has a switch for "Auto"
-    o By default, auto mode tries to get the user's location and if it succeeds, it displays it in the form of
+    x after the navbar, there is a location bar. 
+    x the location bar has a switch for "Auto"
+    x By default, auto mode tries to get the user's location and if it succeeds, it displays it in the form of
       a standard U.S. Address up to the city level.
-    o if the location bar can't get the user location, auto mode switches off and a "state" dropdown appears
-    o the location is saved to the default phone user preferences storage (use the appropriate Tauri plugin)
+    x if the location bar can't get the user location, auto mode switches off and a "state" dropdown appears
+    x the location is saved to the default phone user preferences storage (use the appropriate Tauri Store plugin)
   o Custom tab - filter for custom criteria: location, severity, date range, class, firm, keywords and terms
     o keyword examples: contains undeclared allergen "X", contamination
     o location: detected or manually set

@@ -39,18 +39,25 @@
   // ── Init from persisted preference ────────────────────────────────────────
 
   $effect(() => {
-    const saved = loadLocationPreference();
+    void initializeFromPreference();
+  });
+
+  async function initializeFromPreference(): Promise<void> {
+    const saved = await loadLocationPreference();
     if (saved) {
       autoEnabled = saved.auto;
       stateCode = saved.stateCode;
       city = saved.city;
       if (saved.stateCode) onStateChange(saved.stateCode);
-      if (saved.auto) void runAutoDetect();
-    } else {
-      autoEnabled = true;
-      void runAutoDetect();
+      if (saved.auto) {
+        void runAutoDetect();
+      }
+      return;
     }
-  });
+
+    autoEnabled = true;
+    void runAutoDetect();
+  }
 
   // ── Auto-detect ────────────────────────────────────────────────────────────
 
@@ -61,12 +68,12 @@
       stateCode = result.stateCode;
       city = result.city;
       autoStatus = "success";
-      persist();
+      void persist();
       onStateChange(stateCode);
     } else {
       autoStatus = "failed";
       autoEnabled = false;
-      persist();
+      void persist();
     }
   }
 
@@ -76,7 +83,7 @@
       void runAutoDetect();
     } else {
       autoStatus = "idle";
-      persist();
+      void persist();
     }
   }
 
@@ -84,18 +91,18 @@
     const select = event.currentTarget as HTMLSelectElement;
     stateCode = select.value;
     city = undefined;
-    persist();
+    void persist();
     if (stateCode) onStateChange(stateCode);
   }
 
-  function persist(): void {
+  async function persist(): Promise<void> {
     const pref: LocationPreference = {
       auto: autoEnabled,
       stateCode,
       city,
       label: locationLabel,
     };
-    saveLocationPreference(pref);
+    await saveLocationPreference(pref);
   }
 </script>
 

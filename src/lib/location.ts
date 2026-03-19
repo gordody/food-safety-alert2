@@ -1,4 +1,5 @@
 import type { EnforcementAlert } from "$lib/types";
+import { PREF_KEYS, getPreference, setPreference } from "$lib/preferences";
 
 // ── US States ─────────────────────────────────────────────────────────────────
 
@@ -56,7 +57,7 @@ export const US_STATES: { code: string; name: string }[] = [
   { code: "DC", name: "District of Columbia" },
 ];
 
-// ── Persistence (localStorage) ─────────────────────────────────────────────
+// ── Persistence ─────────────────────────────────────────────────────────────
 
 export type LocationPreference = {
   auto: boolean;
@@ -65,23 +66,12 @@ export type LocationPreference = {
   label: string;
 };
 
-const LOCATION_PREF_KEY = "fsa_location_preference";
-
-export function loadLocationPreference(): LocationPreference | null {
-  try {
-    const raw = localStorage.getItem(LOCATION_PREF_KEY);
-    return raw ? (JSON.parse(raw) as LocationPreference) : null;
-  } catch {
-    return null;
-  }
+export async function loadLocationPreference(): Promise<LocationPreference | null> {
+  return getPreference<LocationPreference>(PREF_KEYS.location);
 }
 
-export function saveLocationPreference(pref: LocationPreference): void {
-  try {
-    localStorage.setItem(LOCATION_PREF_KEY, JSON.stringify(pref));
-  } catch {
-    // Storage not available — silently ignore.
-  }
+export async function saveLocationPreference(pref: LocationPreference): Promise<void> {
+  await setPreference(PREF_KEYS.location, pref);
 }
 
 // ── Geolocation ────────────────────────────────────────────────────────────

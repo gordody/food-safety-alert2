@@ -9,6 +9,7 @@
   import LocationBar from "$lib/components/LocationBar.svelte";
   import NavBar from "$lib/components/NavBar.svelte";
   import { filterAlertsByState } from "$lib/location";
+  import { PREF_KEYS, getPreference, setPreference } from "$lib/preferences";
   import { recallListContext } from "$lib/stores/recallNavigation";
   import type { EnforcementAlert } from "$lib/types";
 
@@ -59,12 +60,26 @@
     await goto(`/recalls/${encodeURIComponent(alert.recall_number)}`);
   }
 
-  onMount(() => {
-    // Restore active tab when navigating back from the detail view.
-    const saved = get(recallListContext);
-    if (saved?.activeTab) {
-      activeTab = saved.activeTab as Tab;
+  function onTabSelect(tabId: string): void {
+    activeTab = tabId as Tab;
+    void setPreference(PREF_KEYS.activeTab, activeTab);
+  }
+
+  async function restoreLastActiveTab(): Promise<void> {
+    const persistedTab = await getPreference<Tab>(PREF_KEYS.activeTab);
+    if (persistedTab) {
+      activeTab = persistedTab;
+      return;
     }
+
+    const navTab = get(recallListContext)?.activeTab;
+    if (navTab) {
+      activeTab = navTab as Tab;
+    }
+  }
+
+  onMount(() => {
+    void restoreLastActiveTab();
     void refreshAlerts();
   });
 </script>
@@ -84,7 +99,7 @@
     <AlertList alerts={displayedAlerts} {isLoading} {errorMessage} onRetry={refreshAlerts} onSelect={openRecallDetails} />
   </main>
 
-  <BottomTabBar items={tabItems} activeItem={activeTab} onSelect={(tabId) => activeTab = tabId as Tab} />
+  <BottomTabBar items={tabItems} activeItem={activeTab} onSelect={onTabSelect} />
 </div>
 
 <style>
