@@ -1,11 +1,14 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
+  import { get } from "svelte/store";
   import { loadLatestEnforcementAlerts } from "$lib/api/enforcement";
   import { prefetchProductImages } from "$lib/api/productImages";
   import AlertList from "$lib/components/AlertList.svelte";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
+  import LocationBar from "$lib/components/LocationBar.svelte";
   import NavBar from "$lib/components/NavBar.svelte";
+  import { filterAlertsByState } from "$lib/location";
   import { recallListContext } from "$lib/stores/recallNavigation";
   import type { EnforcementAlert } from "$lib/types";
 
@@ -16,12 +19,23 @@
   type Tab = "all" | "local" | "custom" | "search";
   let activeTab = $state<Tab>("all");
 
+  // State code selected/detected in the Local tab.
+  let localStateCode = $state<string>("");
+
   const tabItems = [
     { id: "all", label: "All", icon: "all" },
     { id: "local", label: "Local", icon: "local" },
     { id: "custom", label: "Custom", icon: "custom" },
     { id: "search", label: "Search", icon: "search" }
   ] as const;
+
+  // Alerts displayed in the list — filtered when Local tab is active.
+  const displayedAlerts = $derived.by(() => {
+    if (activeTab === "local" && localStateCode) {
+      return filterAlertsByState(alerts, localStateCode);
+    }
+    return alerts;
+  });
 
   async function refreshAlerts(): Promise<void> {
     isLoading = true;
@@ -41,11 +55,16 @@
   }
 
   async function openRecallDetails(alert: EnforcementAlert): Promise<void> {
-    recallListContext.set({ alerts, sourceRoute: "/" });
+    recallListContext.set({ alerts: displayedAlerts, sourceRoute: "/", activeTab });
     await goto(`/recalls/${encodeURIComponent(alert.recall_number)}`);
   }
 
   onMount(() => {
+    // Restore active tab when navigating back from the detail view.
+    const saved = get(recallListContext);
+    if (saved?.activeTab) {
+      activeTab = saved.activeTab as Tab;
+    }
     void refreshAlerts();
   });
 </script>
@@ -57,8 +76,12 @@
     subtitle="Latest FDA food enforcement reports from openFDA."
   />
 
+  {#if activeTab === "local"}
+    <LocationBar onStateChange={(code) => { localStateCode = code; }} />
+  {/if}
+
   <main class="content">
-    <AlertList {alerts} {isLoading} {errorMessage} onRetry={refreshAlerts} onSelect={openRecallDetails} />
+    <AlertList alerts={displayedAlerts} {isLoading} {errorMessage} onRetry={refreshAlerts} onSelect={openRecallDetails} />
   </main>
 
   <BottomTabBar items={tabItems} activeItem={activeTab} onSelect={(tabId) => activeTab = tabId as Tab} />

@@ -219,6 +219,12 @@
   type Tab = "all" | "local" | "custom" | "search";
   let activeTab = $state<Tab>("all");
 
+  $effect(() => {
+    if (navContext?.activeTab) {
+      activeTab = navContext.activeTab as Tab;
+    }
+  });
+
   const tabItems = [
     { id: "all", label: "All", icon: "all" },
     { id: "local", label: "Local", icon: "local" },
@@ -236,6 +242,9 @@
 
   async function onBottomTabSelect(tabId: string): Promise<void> {
     activeTab = tabId as Tab;
+    recallListContext.update((ctx) =>
+      ctx ? { ...ctx, activeTab: tabId } : null,
+    );
     await goto(navContext?.sourceRoute ?? "/");
   }
 </script>
