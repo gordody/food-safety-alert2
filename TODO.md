@@ -2,6 +2,7 @@
 
 x Move nav-bar to its own file so it's reusable across screens if needed
 x Extract the bottom tab bar into its own reusable component
+o Local Tab (and Custom and search results) - Recall details for X
 o Wire the All, Local, Custom, and Search tabs to real behavior
   x All tab
   o Local Tab - filter for Local alerts

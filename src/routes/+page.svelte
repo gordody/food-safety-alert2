@@ -105,7 +105,18 @@
   }
 
   async function openRecallDetails(alert: EnforcementAlert): Promise<void> {
-    recallState.recallListContext = { alerts: displayedAlerts, sourceRoute: "/", activeTab };
+    let locationLabel: string | undefined;
+    if (activeTab === "local") {
+      const pref = await getPreference<LocationPreference>(PREF_KEYS.location);
+      locationLabel = pref?.label || pref?.stateCode || recallState.localAlertsCache?.stateCode;
+    }
+
+    recallState.recallListContext = {
+      alerts: displayedAlerts,
+      sourceRoute: "/",
+      activeTab,
+      locationLabel,
+    };
     await goto(`/recalls/${encodeURIComponent(alert.recall_number)}`);
   }
 

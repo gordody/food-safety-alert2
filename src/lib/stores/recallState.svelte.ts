@@ -4,6 +4,7 @@ export type RecallListContext = {
   alerts: EnforcementAlert[];
   sourceRoute: string;
   activeTab?: string;
+  locationLabel?: string;
 };
 
 export type LocalAlertsCache = {

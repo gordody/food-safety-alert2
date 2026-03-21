@@ -233,6 +233,13 @@
     { id: "search", label: "Search", icon: "search" },
   ] as const;
 
+  const detailTitle = $derived.by(() => {
+    if (navContext?.activeTab === "local" && navContext.locationLabel) {
+      return `Recall Details for ${navContext.locationLabel}`;
+    }
+    return "Recall Details";
+  });
+
   async function goBack(): Promise<void> {
     if (history.length > 1) {
       history.back();
@@ -308,7 +315,7 @@
     <button type="button" class="back-button" onclick={goBack} aria-label="Go back">
       <span class="back-chevron" aria-hidden="true">‹</span>
     </button>
-    <p class="nav-title">Recall Details</p>
+    <p class="nav-title">{detailTitle}</p>
   </header>
 
   {#if !activeAlert}
