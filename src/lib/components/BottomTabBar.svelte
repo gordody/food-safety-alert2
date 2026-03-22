@@ -2,24 +2,33 @@
   export type BottomTabBarItem = {
     id: string;
     label: string;
-    icon: "all" | "local" | "custom" | "search";
+    icon: "all" | "local" | "custom" | "search" | "more";
   };
 
   type Props = {
     items: readonly BottomTabBarItem[];
     activeItem: string;
+    moreMenuOpen?: boolean;
     onSelect?: (id: string) => void;
+    onMoreMenuToggle?: () => void;
     ariaLabel?: string;
   };
 
   let {
     items,
     activeItem,
+    moreMenuOpen = false,
     onSelect,
+    onMoreMenuToggle,
     ariaLabel = "Main navigation"
   }: Props = $props();
 
   function handleSelect(id: string): void {
+    if (id === "more") {
+      onMoreMenuToggle?.();
+      return;
+    }
+
     onSelect?.(id);
   }
 
@@ -34,9 +43,14 @@
       class="tab-item"
       class:tab-item--active={activeItem === item.id}
       aria-current={activeItem === item.id ? "page" : undefined}
+      aria-expanded={item.id === "more" ? moreMenuOpen : undefined}
       onclick={() => handleSelect(item.id)}
     >
-      <span class="tab-icon" style={`--tab-icon: url('${iconUrl(item.icon)}')`} aria-hidden="true"></span>
+      {#if item.icon === "more"}
+        <span class="tab-more-icon" aria-hidden="true">...</span>
+      {:else}
+        <span class="tab-icon" style={`--tab-icon: url('${iconUrl(item.icon)}')`} aria-hidden="true"></span>
+      {/if}
       <span class="tab-label">{item.label}</span>
     </button>
   {/each}
@@ -103,6 +117,18 @@
     background-color: currentColor;
     mask: var(--tab-icon) center / contain no-repeat;
     -webkit-mask: var(--tab-icon) center / contain no-repeat;
+  }
+
+  .tab-more-icon {
+    display: grid;
+    place-items: center;
+    width: 25px;
+    height: 25px;
+    flex-shrink: 0;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    line-height: 1;
   }
 
   .tab-label {

@@ -1,5 +1,14 @@
 # TODO
 
+o Create an About page describing all 3rd party api-s and technologies and their licenses
+  o FDA, openFDA
+  o USDA, FSIS APIs
+  o openstreetmap and api
+  o tauri
+  o svelte, sveltekit
+  o typescript
+  o pnpm
+  o copyright notice: Gyorgy Ordody (c) 2026
 x Move nav-bar to its own file so it's reusable across screens if needed
 x Extract the bottom tab bar into its own reusable component
 x Local Tab (and Custom and search results) - Recall details for X
@@ -18,15 +27,6 @@ o Wire the All, Local, Custom, and Search tabs to real behavior
   o Custom tab - filter for custom criteria: location, severity, date range, class, firm, keywords and terms
     o keyword examples: contains undeclared allergen "X", contamination
     o location: detected or manually set
-o Create an About page describing all 3rd party api-s and technologies and their licenses
-  o FDA, openFDA
-  o USDA, FSIS APIs
-  o openstreetmap and api
-  o tauri
-  o svelte, sveltekit
-  o typescript
-  o pnpm
-  o copyright notice: Gyorgy Ordody (c) 2026
 o Add a proper search field/sheet for the Search tab
 o Format alerts so the product title is more prominent than the rest
 x Move utility functions like `formatDate` to their own folder / file

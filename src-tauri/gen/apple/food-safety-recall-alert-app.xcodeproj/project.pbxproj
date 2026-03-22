@@ -285,7 +285,7 @@
 					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.rng724309.food-safety-recall-alert-app;
-				PRODUCT_NAME = "food-safety-recall-alert-app";
+				PRODUCT_NAME = "Food Safety Recall Alert";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
@@ -383,7 +383,7 @@
 					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.rng724309.food-safety-recall-alert-app;
-				PRODUCT_NAME = "food-safety-recall-alert-app";
+				PRODUCT_NAME = "Food Safety Recall Alert";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;

@@ -4,9 +4,13 @@
   import { loadLatestEnforcementAlerts, loadLocalizedEnforcementAlerts } from "$lib/api/enforcement";
   import { prefetchProductImages } from "$lib/api/productImages";
   import AlertList from "$lib/components/AlertList.svelte";
+  import AboutPane from "$lib/components/AboutPane.svelte";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
+  import MoreMenu from "$lib/components/MoreMenu.svelte";
   import LocationBar from "$lib/components/LocationBar.svelte";
   import NavBar from "$lib/components/NavBar.svelte";
+  import { aboutContent } from "$lib/constants/aboutContent";
+  import { helpContent } from "$lib/constants/helpContent";
   import { PREF_KEYS, getPreference, setPreference } from "$lib/preferences";
   import { recallState } from "$lib/stores/recallState.svelte";
   import type { EnforcementAlert } from "$lib/types";
@@ -22,8 +26,11 @@
   let errorMessage = $state("");
   let localFetchNonce = 0;
 
-  type Tab = "all" | "local" | "custom" | "search";
+  type Tab = "all" | "local" | "custom" | "more";
   let activeTab = $state<Tab>("all");
+  let aboutOpen = $state(false);
+  let helpOpen = $state(false);
+  let moreMenuOpen = $state(false);
 
   // isLoading reflects only the loading state of the currently active tab.
   const isLoading = $derived(activeTab === "local" ? localLoading : allLoading);
@@ -35,7 +42,7 @@
     { id: "all", label: "All", icon: "all" },
     { id: "local", label: "Local", icon: "local" },
     { id: "custom", label: "Custom", icon: "custom" },
-    { id: "search", label: "Search", icon: "search" }
+    { id: "more", label: "More", icon: "more" }
   ] as const;
 
   // Alerts displayed in the list are sourced by the active tab.
@@ -104,6 +111,34 @@
     void refreshLocalAlerts(code);
   }
 
+  function openAbout(): void {
+    moreMenuOpen = false;
+    helpOpen = false;
+    aboutOpen = true;
+  }
+
+  function closeAbout(): void {
+    aboutOpen = false;
+  }
+
+  function openHelp(): void {
+    moreMenuOpen = false;
+    aboutOpen = false;
+    helpOpen = true;
+  }
+
+  function closeHelp(): void {
+    helpOpen = false;
+  }
+
+  function toggleMoreMenu(): void {
+    moreMenuOpen = !moreMenuOpen;
+  }
+
+  function closeMoreMenu(): void {
+    moreMenuOpen = false;
+  }
+
   async function openRecallDetails(alert: EnforcementAlert): Promise<void> {
     let locationLabel: string | undefined;
     if (activeTab === "local") {
@@ -121,6 +156,7 @@
   }
 
   function onTabSelect(tabId: string): void {
+    moreMenuOpen = false;
     activeTab = tabId as Tab;
     void setPreference(PREF_KEYS.activeTab, activeTab);
 
@@ -211,7 +247,23 @@
     />
   </main>
 
-  <BottomTabBar items={tabItems} activeItem={activeTab} onSelect={onTabSelect} />
+  <MoreMenu
+    open={moreMenuOpen}
+    onClose={closeMoreMenu}
+    onOpenAbout={openAbout}
+    onOpenHelp={openHelp}
+  />
+
+  <BottomTabBar
+    items={tabItems}
+    activeItem={activeTab}
+    moreMenuOpen={moreMenuOpen}
+    onSelect={onTabSelect}
+    onMoreMenuToggle={toggleMoreMenu}
+  />
+
+  <AboutPane open={aboutOpen} onClose={closeAbout} content={aboutContent} paneId="about-pane-home" />
+  <AboutPane open={helpOpen} onClose={closeHelp} content={helpContent} paneId="help-pane-home" />
 </div>
 
 <style>

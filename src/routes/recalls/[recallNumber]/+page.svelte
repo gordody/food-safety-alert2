@@ -1,7 +1,11 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { resolveProductImage } from "$lib/api/productImages";
+  import AboutPane from "$lib/components/AboutPane.svelte";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
+  import MoreMenu from "$lib/components/MoreMenu.svelte";
+  import { aboutContent } from "$lib/constants/aboutContent";
+  import { helpContent } from "$lib/constants/helpContent";
   import { PREF_KEYS, setPreference } from "$lib/preferences";
   import { recallState } from "$lib/stores/recallState.svelte";
   import type { EnforcementAlert } from "$lib/types";
@@ -18,6 +22,9 @@
   const fallbackImage = "/images/product-placeholder.svg";
   const navContext = $derived(recallState.recallListContext);
   const effectiveAlerts = $derived(navContext?.alerts ?? data.defaultAlerts);
+  let aboutOpen = $state(false);
+  let helpOpen = $state(false);
+  let moreMenuOpen = $state(false);
   let activeRecallNumber = $state("");
   let resolvedImageUrls = $state<Record<string, string | null>>({});
   let resolvingImages = $state<Record<string, boolean>>({});
@@ -217,7 +224,7 @@
     }
   }
 
-  type Tab = "all" | "local" | "custom" | "search";
+  type Tab = "all" | "local" | "custom" | "more";
   let activeTab = $state<Tab>("all");
 
   $effect(() => {
@@ -230,7 +237,7 @@
     { id: "all", label: "All", icon: "all" },
     { id: "local", label: "Local", icon: "local" },
     { id: "custom", label: "Custom", icon: "custom" },
-    { id: "search", label: "Search", icon: "search" },
+    { id: "more", label: "More", icon: "more" },
   ] as const;
 
   const detailTitle = $derived.by(() => {
@@ -249,12 +256,41 @@
   }
 
   async function onBottomTabSelect(tabId: string): Promise<void> {
+    moreMenuOpen = false;
     activeTab = tabId as Tab;
     void setPreference(PREF_KEYS.activeTab, activeTab);
     if (navContext) {
       recallState.recallListContext = { ...navContext, activeTab: tabId };
     }
     await goto(navContext?.sourceRoute ?? "/");
+  }
+
+  function openAbout(): void {
+    moreMenuOpen = false;
+    helpOpen = false;
+    aboutOpen = true;
+  }
+
+  function closeAbout(): void {
+    aboutOpen = false;
+  }
+
+  function openHelp(): void {
+    moreMenuOpen = false;
+    aboutOpen = false;
+    helpOpen = true;
+  }
+
+  function closeHelp(): void {
+    helpOpen = false;
+  }
+
+  function toggleMoreMenu(): void {
+    moreMenuOpen = !moreMenuOpen;
+  }
+
+  function closeMoreMenu(): void {
+    moreMenuOpen = false;
   }
 </script>
 
@@ -349,7 +385,23 @@
       {/if}
     </main>
 
-    <BottomTabBar items={tabItems} activeItem={activeTab} onSelect={onBottomTabSelect} />
+    <MoreMenu
+      open={moreMenuOpen}
+      onClose={closeMoreMenu}
+      onOpenAbout={openAbout}
+      onOpenHelp={openHelp}
+    />
+
+    <BottomTabBar
+      items={tabItems}
+      activeItem={activeTab}
+      moreMenuOpen={moreMenuOpen}
+      onSelect={onBottomTabSelect}
+      onMoreMenuToggle={toggleMoreMenu}
+    />
+
+    <AboutPane open={aboutOpen} onClose={closeAbout} content={aboutContent} paneId="about-pane-detail" />
+    <AboutPane open={helpOpen} onClose={closeHelp} content={helpContent} paneId="help-pane-detail" />
   {/if}
 </div>
 
