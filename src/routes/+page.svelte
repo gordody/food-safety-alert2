@@ -4,9 +4,11 @@
   import { loadLatestEnforcementAlerts, loadLocalizedEnforcementAlerts } from "$lib/api/enforcement";
   import { prefetchProductImages } from "$lib/api/productImages";
   import AlertList from "$lib/components/AlertList.svelte";
+  import AboutPane from "$lib/components/AboutPane.svelte";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
   import LocationBar from "$lib/components/LocationBar.svelte";
   import NavBar from "$lib/components/NavBar.svelte";
+  import { aboutContent } from "$lib/constants/aboutContent";
   import { PREF_KEYS, getPreference, setPreference } from "$lib/preferences";
   import { recallState } from "$lib/stores/recallState.svelte";
   import type { EnforcementAlert } from "$lib/types";
@@ -22,8 +24,9 @@
   let errorMessage = $state("");
   let localFetchNonce = 0;
 
-  type Tab = "all" | "local" | "custom" | "search";
+  type Tab = "all" | "local" | "custom" | "more";
   let activeTab = $state<Tab>("all");
+  let aboutOpen = $state(false);
 
   // isLoading reflects only the loading state of the currently active tab.
   const isLoading = $derived(activeTab === "local" ? localLoading : allLoading);
@@ -35,7 +38,7 @@
     { id: "all", label: "All", icon: "all" },
     { id: "local", label: "Local", icon: "local" },
     { id: "custom", label: "Custom", icon: "custom" },
-    { id: "search", label: "Search", icon: "search" }
+    { id: "more", label: "More", icon: "more" }
   ] as const;
 
   // Alerts displayed in the list are sourced by the active tab.
@@ -102,6 +105,14 @@
 
     localStateCode = code;
     void refreshLocalAlerts(code);
+  }
+
+  function openAbout(): void {
+    aboutOpen = true;
+  }
+
+  function closeAbout(): void {
+    aboutOpen = false;
   }
 
   async function openRecallDetails(alert: EnforcementAlert): Promise<void> {
@@ -211,7 +222,14 @@
     />
   </main>
 
-  <BottomTabBar items={tabItems} activeItem={activeTab} onSelect={onTabSelect} />
+  <BottomTabBar
+    items={tabItems}
+    activeItem={activeTab}
+    onSelect={onTabSelect}
+    onOpenAbout={openAbout}
+  />
+
+  <AboutPane open={aboutOpen} onClose={closeAbout} content={aboutContent} />
 </div>
 
 <style>

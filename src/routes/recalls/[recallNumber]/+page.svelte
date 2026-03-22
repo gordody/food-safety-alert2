@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { resolveProductImage } from "$lib/api/productImages";
+  import AboutPane from "$lib/components/AboutPane.svelte";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
   import { aboutContent } from "$lib/constants/aboutContent";
   import { PREF_KEYS, setPreference } from "$lib/preferences";
@@ -219,7 +220,7 @@
     }
   }
 
-  type Tab = "all" | "local" | "custom" | "search";
+  type Tab = "all" | "local" | "custom" | "more";
   let activeTab = $state<Tab>("all");
 
   $effect(() => {
@@ -232,7 +233,7 @@
     { id: "all", label: "All", icon: "all" },
     { id: "local", label: "Local", icon: "local" },
     { id: "custom", label: "Custom", icon: "custom" },
-    { id: "search", label: "Search", icon: "search" },
+    { id: "more", label: "More", icon: "more" },
   ] as const;
 
   const detailTitle = $derived.by(() => {
@@ -359,7 +360,14 @@
       {/if}
     </main>
 
-    <BottomTabBar items={tabItems} activeItem={activeTab} onSelect={onBottomTabSelect} />
+    <BottomTabBar
+      items={tabItems}
+      activeItem={activeTab}
+      onSelect={onBottomTabSelect}
+      onOpenAbout={openAbout}
+    />
+
+    <AboutPane open={aboutOpen} onClose={closeAbout} content={aboutContent} />
   {/if}
 </div>
 
