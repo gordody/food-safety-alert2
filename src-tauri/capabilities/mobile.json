@@ -5,6 +5,7 @@
   "platforms": ["iOS", "android"],
   "permissions": [
     "core:default",
+    "store:default",
     "geolocation:allow-check-permissions",
     "geolocation:allow-request-permissions",
     "geolocation:allow-get-current-position",

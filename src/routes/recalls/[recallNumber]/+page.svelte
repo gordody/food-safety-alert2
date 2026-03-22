@@ -2,7 +2,8 @@
   import { goto } from "$app/navigation";
   import { resolveProductImage } from "$lib/api/productImages";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
-  import { recallListContext } from "$lib/stores/recallNavigation";
+  import { PREF_KEYS, setPreference } from "$lib/preferences";
+  import { recallState } from "$lib/stores/recallState.svelte";
   import type { EnforcementAlert } from "$lib/types";
   import { extractProductName, formatLocation } from "$lib/utils";
 
@@ -15,7 +16,7 @@
   const { data }: { data: PageData } = $props();
 
   const fallbackImage = "/images/product-placeholder.svg";
-  const navContext = $derived($recallListContext);
+  const navContext = $derived(recallState.recallListContext);
   const effectiveAlerts = $derived(navContext?.alerts ?? data.defaultAlerts);
   let activeRecallNumber = $state("");
   let resolvedImageUrls = $state<Record<string, string | null>>({});
@@ -219,12 +220,25 @@
   type Tab = "all" | "local" | "custom" | "search";
   let activeTab = $state<Tab>("all");
 
+  $effect(() => {
+    if (navContext?.activeTab) {
+      activeTab = navContext.activeTab as Tab;
+    }
+  });
+
   const tabItems = [
     { id: "all", label: "All", icon: "all" },
     { id: "local", label: "Local", icon: "local" },
     { id: "custom", label: "Custom", icon: "custom" },
     { id: "search", label: "Search", icon: "search" },
   ] as const;
+
+  const detailTitle = $derived.by(() => {
+    if (navContext?.activeTab === "local" && navContext.locationLabel) {
+      return `Recall Details for ${navContext.locationLabel}`;
+    }
+    return "Recall Details";
+  });
 
   async function goBack(): Promise<void> {
     if (history.length > 1) {
@@ -236,6 +250,10 @@
 
   async function onBottomTabSelect(tabId: string): Promise<void> {
     activeTab = tabId as Tab;
+    void setPreference(PREF_KEYS.activeTab, activeTab);
+    if (navContext) {
+      recallState.recallListContext = { ...navContext, activeTab: tabId };
+    }
     await goto(navContext?.sourceRoute ?? "/");
   }
 </script>
@@ -297,7 +315,7 @@
     <button type="button" class="back-button" onclick={goBack} aria-label="Go back">
       <span class="back-chevron" aria-hidden="true">‹</span>
     </button>
-    <p class="nav-title">Recall Details</p>
+    <p class="nav-title">{detailTitle}</p>
   </header>
 
   {#if !activeAlert}
