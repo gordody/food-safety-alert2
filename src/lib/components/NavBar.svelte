@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { aboutContent } from "$lib/constants/aboutContent";
   import AboutPane from "$lib/components/AboutPane.svelte";
 
   type Props = {
@@ -52,7 +53,7 @@
   {/if}
 </header>
 
-<AboutPane open={aboutOpen} onClose={closeAbout} />
+<AboutPane open={aboutOpen} onClose={closeAbout} content={aboutContent} />
 
 <style>
   .nav-bar {

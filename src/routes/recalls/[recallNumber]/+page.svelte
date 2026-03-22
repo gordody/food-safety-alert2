@@ -1,7 +1,9 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { resolveProductImage } from "$lib/api/productImages";
+  import AboutPane from "$lib/components/AboutPane.svelte";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
+  import { aboutContent } from "$lib/constants/aboutContent";
   import { PREF_KEYS, setPreference } from "$lib/preferences";
   import { recallState } from "$lib/stores/recallState.svelte";
   import type { EnforcementAlert } from "$lib/types";
@@ -18,6 +20,7 @@
   const fallbackImage = "/images/product-placeholder.svg";
   const navContext = $derived(recallState.recallListContext);
   const effectiveAlerts = $derived(navContext?.alerts ?? data.defaultAlerts);
+  let aboutOpen = $state(false);
   let activeRecallNumber = $state("");
   let resolvedImageUrls = $state<Record<string, string | null>>({});
   let resolvingImages = $state<Record<string, boolean>>({});
@@ -255,6 +258,14 @@
       recallState.recallListContext = { ...navContext, activeTab: tabId };
     }
     await goto(navContext?.sourceRoute ?? "/");
+  }
+
+  function openAbout(): void {
+    aboutOpen = true;
+  }
+
+  function closeAbout(): void {
+    aboutOpen = false;
   }
 </script>
 
