@@ -9,7 +9,7 @@
   import { PREF_KEYS, setPreference } from "$lib/preferences";
   import { recallState } from "$lib/stores/recallState.svelte";
   import type { EnforcementAlert } from "$lib/types";
-  import { extractProductName, formatLocation } from "$lib/utils";
+  import { extractProductName, formatDate, formatLocation } from "$lib/utils";
 
   type PageData = {
     alert: EnforcementAlert | null;
@@ -325,17 +325,29 @@
       <p class="detail-value">{alert.recalling_firm || "Unknown recalling firm"}</p>
     </article>
 
-    <article class="detail-row">
-      <h2 class="detail-label">Location</h2>
-      <p class="detail-value">
-        {formatLocation(
-          alert.city,
-          alert.state,
-          alert.country,
-          alert.distribution_pattern,
-        )}
-      </p>
-    </article>
+<article class="detail-row">
+  <h2 class="detail-label">Recall date</h2>
+  <p class="detail-value">{formatDate(alert.recall_initiation_date || alert.report_date)}</p>
+</article>
+
+{#if alert.termination_date}
+  <article class="detail-row">
+    <h2 class="detail-label">Termination date</h2>
+    <p class="detail-value">{formatDate(alert.termination_date)}</p>
+  </article>
+{/if}
+
+<article class="detail-row">
+  <h2 class="detail-label">Location</h2>
+  <p class="detail-value">
+    {formatLocation(
+      alert.city,
+      alert.state,
+      alert.country,
+      alert.distribution_pattern,
+    )}
+  </p>
+</article>
   </section>
 {/snippet}
 
