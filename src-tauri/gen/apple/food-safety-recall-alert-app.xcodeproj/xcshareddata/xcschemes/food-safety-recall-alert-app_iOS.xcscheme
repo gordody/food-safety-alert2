@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "8371EC2C7CACD9F017535309"
-               BuildableName = "food-safety-recall-alert-app.app"
+               BuildableName = "Food Safety Recall Alert.app"
                BlueprintName = "food-safety-recall-alert-app_iOS"
                ReferencedContainer = "container:food-safety-recall-alert-app.xcodeproj">
             </BuildableReference>
@@ -31,7 +31,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8371EC2C7CACD9F017535309"
-            BuildableName = "food-safety-recall-alert-app.app"
+            BuildableName = "Food Safety Recall Alert.app"
             BlueprintName = "food-safety-recall-alert-app_iOS"
             ReferencedContainer = "container:food-safety-recall-alert-app.xcodeproj">
          </BuildableReference>
@@ -66,7 +66,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8371EC2C7CACD9F017535309"
-            BuildableName = "food-safety-recall-alert-app.app"
+            BuildableName = "Food Safety Recall Alert.app"
             BlueprintName = "food-safety-recall-alert-app_iOS"
             ReferencedContainer = "container:food-safety-recall-alert-app.xcodeproj">
          </BuildableReference>
@@ -95,7 +95,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8371EC2C7CACD9F017535309"
-            BuildableName = "food-safety-recall-alert-app.app"
+            BuildableName = "Food Safety Recall Alert.app"
             BlueprintName = "food-safety-recall-alert-app_iOS"
             ReferencedContainer = "container:food-safety-recall-alert-app.xcodeproj">
          </BuildableReference>
