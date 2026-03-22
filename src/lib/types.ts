@@ -14,4 +14,13 @@ export type EnforcementAlert = {
 
 export type EnforcementResponse = {
   results: EnforcementAlert[];
+  meta?: {
+    last_page: number;
+    total_pages: number;
+    results?: {
+      skip: number;
+      limit: number;
+      total: number;
+    };
+  };
 };

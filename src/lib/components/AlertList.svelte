@@ -6,11 +6,51 @@
     alerts: EnforcementAlert[];
     isLoading: boolean;
     errorMessage: string;
+    hasMore?: boolean;
+    isLoadingMore?: boolean;
     onRetry?: () => void;
     onSelect?: (alert: EnforcementAlert, index: number) => void;
+    onLoadMore?: () => void;
   }
 
-  const { alerts, isLoading, errorMessage, onRetry, onSelect }: Props = $props();
+  const {
+    alerts,
+    isLoading,
+    errorMessage,
+    hasMore = false,
+    isLoadingMore = false,
+    onRetry,
+    onSelect,
+    onLoadMore,
+  }: Props = $props();
+
+  let loadMoreTrigger: HTMLDivElement | null = $state(null);
+  const loadMoreTriggerIndex = $derived(Math.max(alerts.length - 5, 0));
+
+  $effect(() => {
+    if (!loadMoreTrigger || !onLoadMore || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && hasMore && !isLoadingMore) {
+            onLoadMore();
+            break;
+          }
+        }
+      },
+      {
+        rootMargin: "0px 0px 320px 0px",
+        threshold: 0,
+      },
+    );
+
+    observer.observe(loadMoreTrigger);
+
+    return () => {
+      observer.disconnect();
+    };
+  });
 
   function classificationVariant(classification: string): "critical" | "warning" | "safe" | "neutral" {
     const c = classification?.toLowerCase() ?? "";
@@ -49,30 +89,33 @@
             aria-label={`Open details for recall ${alert.recall_number}`}
           >
             <div class="cell-inner">
-            <div class="cell-row-top">
-              <span class="badge" data-variant={classificationVariant(alert.classification)}>
-                {alert.classification || "Unclassified"}
-              </span>
-              <time class="cell-date">{formatDate(alert.report_date)}</time>
-            </div>
-            <p class="cell-headline">{extractProductName(alert.product_description)}</p>
-            <p class="cell-line">
-              <span class="cell-label">Recall reason:</span>
-              <span class="cell-value">{alert.reason_for_recall || "Reason not provided."}</span>
-            </p>
-            <p class="cell-line">
-              <span class="cell-label">Recalling firm:</span>
-              <span class="cell-value">{alert.recalling_firm || "Unknown recalling firm"}</span>
-            </p>
-            <p class="cell-line">
-              <span class="cell-label">Location:</span>
-              <span class="cell-value">
-                {formatLocation(alert.city, alert.state, alert.country, alert.distribution_pattern)}
-              </span>
-            </p>
-            <p class="cell-footnote">Recall #{alert.recall_number} · {alert.status || "Status unknown"}</p>
+              <div class="cell-row-top">
+                <span class="badge" data-variant={classificationVariant(alert.classification)}>
+                  {alert.classification || "Unclassified"}
+                </span>
+                <time class="cell-date">{formatDate(alert.report_date)}</time>
+              </div>
+              <p class="cell-headline">{extractProductName(alert.product_description)}</p>
+              <p class="cell-line">
+                <span class="cell-label">Recall reason:</span>
+                <span class="cell-value">{alert.reason_for_recall || "Reason not provided."}</span>
+              </p>
+              <p class="cell-line">
+                <span class="cell-label">Recalling firm:</span>
+                <span class="cell-value">{alert.recalling_firm || "Unknown recalling firm"}</span>
+              </p>
+              <p class="cell-line">
+                <span class="cell-label">Location:</span>
+                <span class="cell-value">
+                  {formatLocation(alert.city, alert.state, alert.country, alert.distribution_pattern)}
+                </span>
+              </p>
+              <p class="cell-footnote">Recall #{alert.recall_number} · {alert.status || "Status unknown"}</p>
             </div>
           </button>
+          {#if hasMore && i === loadMoreTriggerIndex}
+            <div bind:this={loadMoreTrigger} class="load-more-trigger" aria-hidden="true"></div>
+          {/if}
           {#if i < alerts.length - 1}
             <div class="separator" aria-hidden="true"></div>
           {/if}
@@ -80,6 +123,13 @@
       {/each}
     </ul>
   </section>
+
+  {#if isLoadingMore}
+    <div class="load-more-state" aria-live="polite">
+      <div class="spinner" aria-label="Loading more alerts" role="status"></div>
+      <p class="state-label">Loading more alerts…</p>
+    </div>
+  {/if}
 {/if}
 
 <style>
@@ -309,5 +359,21 @@
     font-size: 17px;
     font-weight: 600;
     cursor: pointer;
+  }
+
+  .load-more-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    gap: 12px;
+  }
+
+  .load-more-trigger {
+    position: absolute;
+    inset: auto 0 0;
+    height: 1px;
+    pointer-events: none;
   }
 </style>

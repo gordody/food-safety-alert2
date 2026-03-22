@@ -2,10 +2,11 @@ import { OPEN_FDA_BASE_URL, MAX_ALERTS } from "$lib/constants";
 import { US_STATES } from "$lib/constants";
 import type { EnforcementAlert, EnforcementResponse } from "$lib/types";
 
-export async function loadLatestEnforcementAlerts(apiKey?: string): Promise<EnforcementAlert[]> {
+export async function loadLatestEnforcementAlerts(apiKey?: string, skip: number = 0): Promise<{ alerts: EnforcementAlert[]; totalResults: number }> {
   const params = new URLSearchParams({
     limit: String(MAX_ALERTS),
-    sort: "report_date:desc"
+    sort: "report_date:desc",
+    skip: String(skip),
   });
 
   if (apiKey) {
@@ -19,7 +20,8 @@ export async function loadLatestEnforcementAlerts(apiKey?: string): Promise<Enfo
   }
 
   const data: EnforcementResponse = await response.json();
-  return data.results ?? [];
+  const totalResults = data.meta?.results?.total ?? 0;
+  return { alerts: data.results ?? [], totalResults };
 }
 
 function buildLocationSearchQuery(stateCode: string): string {
@@ -44,14 +46,16 @@ function buildLocationSearchQuery(stateCode: string): string {
 export async function loadLocalizedEnforcementAlerts(
   stateCode: string,
   apiKey?: string,
-): Promise<EnforcementAlert[]> {
+  skip: number = 0,
+): Promise<{ alerts: EnforcementAlert[]; totalResults: number }> {
   const normalizedStateCode = stateCode.trim().toUpperCase();
-  if (!normalizedStateCode) return [];
+  if (!normalizedStateCode) return { alerts: [], totalResults: 0 };
 
   const params = new URLSearchParams({
     limit: String(MAX_ALERTS),
     sort: "report_date:desc",
     search: buildLocationSearchQuery(normalizedStateCode),
+    skip: String(skip),
   });
 
   if (apiKey) {
@@ -65,7 +69,8 @@ export async function loadLocalizedEnforcementAlerts(
   }
 
   const data: EnforcementResponse = await response.json();
-  return data.results ?? [];
+  const totalResults = data.meta?.results?.total ?? 0;
+  return { alerts: data.results ?? [], totalResults };
 }
 
 export async function loadEnforcementAlertByRecallNumber(

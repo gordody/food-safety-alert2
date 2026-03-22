@@ -10,6 +10,7 @@ export type RecallListContext = {
 export type LocalAlertsCache = {
   stateCode: string;
   alerts: EnforcementAlert[];
+  totalResults: number;
 };
 
 export type RecallState = {
