@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { resolveProductImage } from "$lib/api/productImages";
-  import AboutPane from "$lib/components/AboutPane.svelte";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
   import { aboutContent } from "$lib/constants/aboutContent";
   import { PREF_KEYS, setPreference } from "$lib/preferences";
@@ -327,19 +326,7 @@
       <span class="back-chevron" aria-hidden="true">‹</span>
     </button>
     <p class="nav-title">{detailTitle}</p>
-    <button
-      type="button"
-      class="about-trigger"
-      aria-label="Open about panel"
-      aria-expanded={aboutOpen}
-      aria-controls="about-pane"
-      onclick={openAbout}
-    >
-      <img src="/images/app-icon.png" alt="App logo" class="about-trigger-icon" />
-    </button>
   </header>
-
-  <AboutPane open={aboutOpen} onClose={closeAbout} content={aboutContent} />
 
   {#if !activeAlert}
     <main class="detail-content detail-content--empty">
