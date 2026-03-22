@@ -14,7 +14,7 @@
     initialStateCode?: string;
   };
 
-  const { onStateChange, initialStateCode = "" }: Props = $props();
+  const { onStateChange, initialStateCode = "ALL" }: Props = $props();
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -30,6 +30,8 @@
   // ── Derived label ──────────────────────────────────────────────────────────
 
   const locationLabel = $derived.by(() => {
+    if (stateCode === "ALL") return "All States";
+
     if (autoEnabled) {
       if (autoStatus === "detecting") return "Detecting location…";
       if (autoStatus === "success" && stateCode)
@@ -51,20 +53,22 @@
     if (saved) {
       autoEnabled = saved.auto;
       city = saved.city;
-      const savedCode = saved.stateCode ?? "";
+      const savedCode = saved.stateCode || "ALL";
       const codeChanged = savedCode !== stateCode;
       stateCode = savedCode;
       // Only fire onStateChange if the preference differs from what the parent already
       // provided via initialStateCode — avoids a redundant refetch on every mount.
-      if (codeChanged && savedCode) onStateChange(savedCode);
+      if (codeChanged) onStateChange(savedCode);
       if (saved.auto) {
         void runAutoDetect({ keepAutoOnFailure: false });
       }
       return;
     }
 
-    autoEnabled = true;
-    void runAutoDetect({ keepAutoOnFailure: false });
+    autoEnabled = false;
+    stateCode = "ALL";
+    onStateChange("ALL");
+    void persist();
   }
 
   // ── Auto-detect ────────────────────────────────────────────────────────────
@@ -104,7 +108,7 @@
     stateCode = select.value;
     city = undefined;
     void persist();
-    if (stateCode) onStateChange(stateCode);
+    onStateChange(stateCode || "ALL");
   }
 
   async function persist(): Promise<void> {
@@ -133,7 +137,7 @@
         value={stateCode}
         onchange={handleStateSelect}
       >
-        <option value="" disabled>Select a state</option>
+        <option value="ALL">All States</option>
         {#each US_STATES as s (s.code)}
           <option value={s.code}>{s.name}</option>
         {/each}

@@ -64,88 +64,33 @@
 
   let allAlerts = $state<EnforcementAlert[]>([]);
   let localAlerts = $state<EnforcementAlert[]>(initialLocalCache?.alerts ?? []);
-  let allLoading = $state(true);
   let localLoading = $state(false);
-  let allLoadingMore = $state(false);
   let localLoadingMore = $state(false);
   let errorMessage = $state("");
-  let allFetchNonce = 0;
   let localFetchNonce = 0;
-  let allTotalResults = $state(0);
   let localTotalResults = $state(initialLocalCache?.totalResults ?? initialLocalCache?.alerts.length ?? 0);
   let localCacheNeedsMetadataRefresh = $state(false);
 
-  type Tab = "all" | "local" | "custom" | "more";
-  let activeTab = $state<Tab>("all");
+  type Tab = "local" | "custom" | "more";
+  let activeTab = $state<Tab>("local");
   let aboutOpen = $state(false);
   let helpOpen = $state(false);
   let moreMenuOpen = $state(false);
 
-  const isLoading = $derived(activeTab === "local" ? localLoading : allLoading);
-  const isLoadingMore = $derived(activeTab === "local" ? localLoadingMore : allLoadingMore);
+  const isLoading = $derived(localLoading);
+  const isLoadingMore = $derived(localLoadingMore);
 
-  let localStateCode = $state<string>(initialLocalCache?.stateCode ?? "");
+  let localStateCode = $state<string>(initialLocalCache?.stateCode ?? "ALL");
 
   const tabItems = [
-    { id: "all", label: "All", icon: "all" },
     { id: "local", label: "Local", icon: "local" },
     { id: "custom", label: "Custom", icon: "custom" },
     { id: "more", label: "More", icon: "more" }
   ] as const;
 
-  const displayedAlerts = $derived.by(() => {
-    if (activeTab === "local") return localAlerts;
-    return allAlerts;
-  });
+  const displayedAlerts = $derived(localAlerts);
 
-  const hasMore = $derived.by(() => {
-    if (activeTab === "local") {
-      return localTotalResults > 0 && localAlerts.length < localTotalResults;
-    }
-
-    return allTotalResults > 0 && allAlerts.length < allTotalResults;
-  });
-
-  async function refreshAllAlerts({ append = false }: RefreshOptions = {}): Promise<void> {
-    if (append) {
-      if (allLoading || allLoadingMore) return;
-      allLoadingMore = true;
-    } else {
-      allLoading = true;
-    }
-
-    errorMessage = "";
-    const requestNonce = ++allFetchNonce;
-
-    try {
-      const apiKey = import.meta.env.PUBLIC_OPEN_FDA_API_KEY;
-      const { alerts: nextAlerts, totalResults } = await loadLatestEnforcementAlerts(
-        apiKey,
-        append ? allAlerts.length : 0,
-      );
-      if (requestNonce !== allFetchNonce) return;
-
-      allTotalResults = totalResults;
-      allAlerts = append ? mergeUniqueAlerts(allAlerts, nextAlerts) : nextAlerts;
-
-      if (nextAlerts.length > 0) {
-        void prefetchProductImages(nextAlerts);
-      }
-    } catch (error) {
-      if (requestNonce !== allFetchNonce) return;
-      if (!append) {
-        errorMessage = error instanceof Error ? error.message : "Failed to load FDA enforcement alerts.";
-      }
-    } finally {
-      if (requestNonce === allFetchNonce) {
-        if (append) {
-          allLoadingMore = false;
-        } else {
-          allLoading = false;
-        }
-      }
-    }
-  }
+  const hasMore = $derived(localTotalResults > 0 && localAlerts.length < localTotalResults);
 
   async function refreshLocalAlerts(
     stateCode: string,
@@ -172,11 +117,10 @@
     const requestNonce = ++localFetchNonce;
     try {
       const apiKey = import.meta.env.PUBLIC_OPEN_FDA_API_KEY;
-      const { alerts: nextAlerts, totalResults } = await loadLocalizedEnforcementAlerts(
-        normalizedStateCode,
-        apiKey,
-        append ? localAlerts.length : 0,
-      );
+      const { alerts: nextAlerts, totalResults } =
+        normalizedStateCode === "ALL"
+          ? await loadLatestEnforcementAlerts(apiKey, append ? localAlerts.length : 0)
+          : await loadLocalizedEnforcementAlerts(normalizedStateCode, apiKey, append ? localAlerts.length : 0);
       if (requestNonce !== localFetchNonce) return;
 
       localTotalResults = totalResults;
@@ -224,14 +168,8 @@
   }
 
   function loadMoreDisplayedAlerts(): void {
-    if (activeTab === "local") {
-      if (!localStateCode || localAlerts.length >= localTotalResults) return;
-      void refreshLocalAlerts(localStateCode, { append: true });
-      return;
-    }
-
-    if (allAlerts.length >= allTotalResults) return;
-    void refreshAllAlerts({ append: true });
+    if (!localStateCode || localAlerts.length >= localTotalResults) return;
+    void refreshLocalAlerts(localStateCode, { append: true });
   }
 
   function openAbout(): void {
@@ -264,15 +202,16 @@
 
   async function openRecallDetails(alert: EnforcementAlert): Promise<void> {
     let locationLabel: string | undefined;
-    if (activeTab === "local") {
-      const pref = await getPreference<LocationPreference>(PREF_KEYS.location);
-      locationLabel = pref?.label || pref?.stateCode || recallState.localAlertsCache?.stateCode;
-    }
+    const pref = await getPreference<LocationPreference>(PREF_KEYS.location);
+    locationLabel =
+      localStateCode === "ALL"
+        ? "All States"
+        : pref?.label || pref?.stateCode || recallState.localAlertsCache?.stateCode;
 
     recallState.recallListContext = {
       alerts: displayedAlerts,
       sourceRoute: "/",
-      activeTab,
+      activeTab: "local",
       locationLabel,
     };
     await goto(`/recalls/${encodeURIComponent(alert.recall_number)}`);
@@ -282,13 +221,6 @@
     moreMenuOpen = false;
     activeTab = tabId as Tab;
     void setPreference(PREF_KEYS.activeTab, activeTab);
-
-    if (activeTab === "all") {
-      if (allAlerts.length === 0) {
-        void refreshAllAlerts();
-      }
-      return;
-    }
 
     if (activeTab === "local") {
       const cached = normalizeLocalCache(recallState.localAlertsCache as PersistedLocalAlertsCache);
@@ -308,13 +240,17 @@
   async function restoreLastActiveTab(): Promise<void> {
     const persistedTab = await getPreference<Tab>(PREF_KEYS.activeTab);
     if (persistedTab) {
-      activeTab = persistedTab;
+      activeTab = persistedTab === "local" || persistedTab === "custom" || persistedTab === "more"
+        ? persistedTab
+        : "local";
       return;
     }
 
     const navTab = recallState.recallListContext?.activeTab;
     if (navTab) {
-      activeTab = navTab as Tab;
+      activeTab = navTab === "local" || navTab === "custom" || navTab === "more"
+        ? navTab
+        : "local";
     }
   }
 
@@ -330,7 +266,7 @@
       localAlerts = cachedData.alerts;
       localTotalResults = cachedData.totalResults;
       if (!localStateCode) {
-        localStateCode = cachedData.stateCode;
+        localStateCode = cachedData.stateCode || "ALL";
       }
     }
 
@@ -338,6 +274,8 @@
       const locPref = await getPreference<LocationPreference>(PREF_KEYS.location);
       if (locPref?.stateCode) {
         localStateCode = locPref.stateCode;
+      } else {
+        localStateCode = "ALL";
       }
     }
 
@@ -355,7 +293,9 @@
       }
     }
 
-    void refreshAllAlerts();
+    if (activeTab === "local" && localAlerts.length === 0) {
+      void refreshLocalAlerts(localStateCode || "ALL");
+    }
   });
 </script>
 
@@ -377,7 +317,7 @@
       {errorMessage}
       {hasMore}
       {isLoadingMore}
-      onRetry={activeTab === "local" ? () => refreshLocalAlerts(localStateCode) : refreshAllAlerts}
+      onRetry={() => refreshLocalAlerts(localStateCode || "ALL")}
       onSelect={openRecallDetails}
       onLoadMore={loadMoreDisplayedAlerts}
     />
