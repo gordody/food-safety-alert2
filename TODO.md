@@ -2,10 +2,13 @@
 
 x Move nav-bar to its own file so it's reusable across screens if needed
 x Extract the bottom tab bar into its own reusable component
-o Local Tab (and Custom and search results) - Recall details for X
+x Local Tab (and Custom and search results) - Recall details for X
+o implement alerting for new recalls using the Tauri notification plugin
+o on location and custom tabs highlight filters, like location (California, for example) or other custom filters, like allergens
+o App Store distribution
 o Wire the All, Local, Custom, and Search tabs to real behavior
   x All tab
-  o Local Tab - filter for Local alerts
+  x Local Tab - filter for Local alerts
     x after the navbar, there is a location bar. 
     x the location bar has a switch for "Auto"
     x By default, auto mode tries to get the user's location and if it succeeds, it displays it in the form of
@@ -24,7 +27,6 @@ o Create an About page describing all 3rd party api-s and technologies and their
   o typescript
   o pnpm
   o copyright notice: Gyorgy Ordody (c) 2026
-o Make the selected tab actually filter the content for All, Local, and Custom
 o Add a proper search field/sheet for the Search tab
 o Format alerts so the product title is more prominent than the rest
 x Move utility functions like `formatDate` to their own folder / file

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "food-safety-recall-alert-app",
+  "productName": "Food Safety Recall Alert",
   "version": "0.1.0",
   "identifier": "com.rng724309.food-safety-recall-alert-app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "food-safety-recall-alert-app",
+        "title": "Food Safety Recall Alert",
         "width": 800,
         "height": 600
       }
