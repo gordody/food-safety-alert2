@@ -6,6 +6,7 @@
   import AlertList from "$lib/components/AlertList.svelte";
   import AboutPane from "$lib/components/AboutPane.svelte";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
+  import MoreMenu from "$lib/components/MoreMenu.svelte";
   import LocationBar from "$lib/components/LocationBar.svelte";
   import NavBar from "$lib/components/NavBar.svelte";
   import { aboutContent } from "$lib/constants/aboutContent";
@@ -29,6 +30,7 @@
   let activeTab = $state<Tab>("all");
   let aboutOpen = $state(false);
   let helpOpen = $state(false);
+  let moreMenuOpen = $state(false);
 
   // isLoading reflects only the loading state of the currently active tab.
   const isLoading = $derived(activeTab === "local" ? localLoading : allLoading);
@@ -110,6 +112,7 @@
   }
 
   function openAbout(): void {
+    moreMenuOpen = false;
     helpOpen = false;
     aboutOpen = true;
   }
@@ -119,12 +122,21 @@
   }
 
   function openHelp(): void {
+    moreMenuOpen = false;
     aboutOpen = false;
     helpOpen = true;
   }
 
   function closeHelp(): void {
     helpOpen = false;
+  }
+
+  function toggleMoreMenu(): void {
+    moreMenuOpen = !moreMenuOpen;
+  }
+
+  function closeMoreMenu(): void {
+    moreMenuOpen = false;
   }
 
   async function openRecallDetails(alert: EnforcementAlert): Promise<void> {
@@ -144,6 +156,7 @@
   }
 
   function onTabSelect(tabId: string): void {
+    moreMenuOpen = false;
     activeTab = tabId as Tab;
     void setPreference(PREF_KEYS.activeTab, activeTab);
 
@@ -234,12 +247,19 @@
     />
   </main>
 
+  <MoreMenu
+    open={moreMenuOpen}
+    onClose={closeMoreMenu}
+    onOpenAbout={openAbout}
+    onOpenHelp={openHelp}
+  />
+
   <BottomTabBar
     items={tabItems}
     activeItem={activeTab}
+    moreMenuOpen={moreMenuOpen}
     onSelect={onTabSelect}
-    onOpenAbout={openAbout}
-    onOpenHelp={openHelp}
+    onMoreMenuToggle={toggleMoreMenu}
   />
 
   <AboutPane open={aboutOpen} onClose={closeAbout} content={aboutContent} paneId="about-pane-home" />

@@ -43,9 +43,9 @@
   }
 
   .more-menu {
-    position: absolute;
+    position: fixed;
     right: 10px;
-    bottom: calc(100% + 8px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(49px + 8px + env(safe-area-inset-bottom, 0px));
     min-width: 152px;
     border-radius: 14px;
     padding: 6px;

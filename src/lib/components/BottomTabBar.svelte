@@ -1,6 +1,4 @@
 <script lang="ts">
-  import MoreMenu from "$lib/components/MoreMenu.svelte";
-
   export type BottomTabBarItem = {
     id: string;
     label: string;
@@ -10,35 +8,28 @@
   type Props = {
     items: readonly BottomTabBarItem[];
     activeItem: string;
+    moreMenuOpen?: boolean;
     onSelect?: (id: string) => void;
-    onOpenAbout?: () => void;
-    onOpenHelp?: () => void;
+    onMoreMenuToggle?: () => void;
     ariaLabel?: string;
   };
 
   let {
     items,
     activeItem,
+    moreMenuOpen = false,
     onSelect,
-    onOpenAbout,
-    onOpenHelp,
+    onMoreMenuToggle,
     ariaLabel = "Main navigation"
   }: Props = $props();
 
-  let moreMenuOpen = $state(false);
-
   function handleSelect(id: string): void {
     if (id === "more") {
-      moreMenuOpen = !moreMenuOpen;
+      onMoreMenuToggle?.();
       return;
     }
 
-    moreMenuOpen = false;
     onSelect?.(id);
-  }
-
-  function closeMenu(): void {
-    moreMenuOpen = false;
   }
 
   function iconUrl(icon: BottomTabBarItem["icon"]): string {
@@ -47,13 +38,6 @@
 </script>
 
 <nav class="tab-bar" aria-label={ariaLabel}>
-  <MoreMenu
-    open={moreMenuOpen}
-    onClose={closeMenu}
-    onOpenAbout={onOpenAbout}
-    onOpenHelp={onOpenHelp}
-  />
-
   {#each items as item (item.id)}
     <button
       class="tab-item"
