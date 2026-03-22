@@ -12,7 +12,7 @@
   import { aboutContent } from "$lib/constants/aboutContent";
   import { helpContent } from "$lib/constants/helpContent";
   import { PREF_KEYS, getPreference, setPreference } from "$lib/preferences";
-  import { recallState } from "$lib/stores/recallState.svelte";
+  import { recallState, type LocalAlertsCache } from "$lib/stores/recallState.svelte";
   import type { EnforcementAlert } from "$lib/types";
   import type { LocationPreference } from "$lib/location";
 
