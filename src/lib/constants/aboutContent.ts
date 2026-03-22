@@ -94,5 +94,5 @@ export const aboutContent: AboutContent = {
       ],
     },
   ],
-  copyright: "(c) Gyorgy Ordody 2026",
+  copyright: "© Gyorgy Ordody, 2026",
 };
