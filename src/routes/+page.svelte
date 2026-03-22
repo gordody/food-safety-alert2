@@ -105,8 +105,11 @@
     subtitle="Latest FDA food enforcement reports from openFDA."
   />
 
-  <LocalAlertsTab isActive={activeTab !== "custom"} onSelectAlert={onTabAlertSelect} />
-  <CustomAlertsTab isActive={activeTab === "custom"} onSelectAlert={onTabAlertSelect} />
+  {#if activeTab === "custom"}
+    <CustomAlertsTab isActive={true} onSelectAlert={onTabAlertSelect} />
+  {:else}
+    <LocalAlertsTab isActive={true} onSelectAlert={onTabAlertSelect} />
+  {/if}
 
   <MoreMenu
     open={moreMenuOpen}
