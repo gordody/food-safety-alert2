@@ -1,7 +1,11 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
-  import { loadLatestEnforcementAlerts, loadLocalizedEnforcementAlerts } from "$lib/api/enforcement";
+  import {
+    loadLatestEnforcementAlerts,
+    loadLocalizedEnforcementAlerts,
+    loadCustomEnforcementAlerts,
+  } from "$lib/api/enforcement";
   import { prefetchProductImages } from "$lib/api/productImages";
   import AlertList from "$lib/components/AlertList.svelte";
   import AboutPane from "$lib/components/AboutPane.svelte";
@@ -24,6 +28,13 @@
 
   type RefreshOptions = {
     append?: boolean;
+  };
+
+  type CustomSearchForm = {
+    location: string;
+    keywords: string;
+    reportDateFrom: string;
+    reportDateTo: string;
   };
 
   function normalizeLocalCache(cache: PersistedLocalAlertsCache): LocalAlertsCache | null {
@@ -64,12 +75,24 @@
 
   let allAlerts = $state<EnforcementAlert[]>([]);
   let localAlerts = $state<EnforcementAlert[]>(initialLocalCache?.alerts ?? []);
+  let customAlerts = $state<EnforcementAlert[]>([]);
   let localLoading = $state(false);
+  let customLoading = $state(false);
   let localLoadingMore = $state(false);
-  let errorMessage = $state("");
+  let customLoadingMore = $state(false);
+  let localErrorMessage = $state("");
+  let customErrorMessage = $state("");
   let localFetchNonce = 0;
+  let customFetchNonce = 0;
   let localTotalResults = $state(initialLocalCache?.totalResults ?? initialLocalCache?.alerts.length ?? 0);
+  let customTotalResults = $state(0);
   let localCacheNeedsMetadataRefresh = $state(false);
+
+  let customLocation = $state("");
+  let customKeywords = $state("");
+  let customDateFrom = $state("");
+  let customDateTo = $state("");
+  let customSearchStarted = $state(false);
 
   type Tab = "local" | "custom" | "more";
   let activeTab = $state<Tab>("local");
@@ -77,8 +100,10 @@
   let helpOpen = $state(false);
   let moreMenuOpen = $state(false);
 
-  const isLoading = $derived(localLoading);
-  const isLoadingMore = $derived(localLoadingMore);
+  const displayedAlerts = $derived(activeTab === "custom" ? customAlerts : localAlerts);
+  const isLoading = $derived(activeTab === "custom" ? customLoading : localLoading);
+  const isLoadingMore = $derived(activeTab === "custom" ? customLoadingMore : localLoadingMore);
+  const errorMessage = $derived(activeTab === "custom" ? customErrorMessage : localErrorMessage);
 
   let localStateCode = $state<string>(initialLocalCache?.stateCode ?? "ALL");
 
@@ -88,9 +113,11 @@
     { id: "more", label: "More", icon: "more" }
   ] as const;
 
-  const displayedAlerts = $derived(localAlerts);
-
-  const hasMore = $derived(localTotalResults > 0 && localAlerts.length < localTotalResults);
+  const hasMore = $derived(
+    activeTab === "custom"
+      ? customTotalResults > 0 && customAlerts.length < customTotalResults
+      : localTotalResults > 0 && localAlerts.length < localTotalResults,
+  );
 
   async function refreshLocalAlerts(
     stateCode: string,
@@ -112,7 +139,7 @@
       localLoading = true;
     }
 
-    errorMessage = "";
+    localErrorMessage = "";
 
     const requestNonce = ++localFetchNonce;
     try {
@@ -141,7 +168,7 @@
     } catch (error) {
       if (requestNonce !== localFetchNonce) return;
       if (!append) {
-        errorMessage = error instanceof Error ? error.message : "Failed to load localized FDA enforcement alerts.";
+        localErrorMessage = error instanceof Error ? error.message : "Failed to load localized FDA enforcement alerts.";
       }
     } finally {
       if (requestNonce === localFetchNonce) {
@@ -167,7 +194,105 @@
     void refreshLocalAlerts(normalized);
   }
 
+  function buildCustomFilters(): CustomSearchForm {
+    return {
+      location: customLocation.trim(),
+      keywords: customKeywords.trim(),
+      reportDateFrom: customDateFrom,
+      reportDateTo: customDateTo,
+    };
+  }
+
+  function hasActiveCustomFilters(): boolean {
+    const filters = buildCustomFilters();
+    return Boolean(filters.location || filters.keywords || filters.reportDateFrom || filters.reportDateTo);
+  }
+
+  async function refreshCustomAlerts({ append = false }: RefreshOptions = {}): Promise<void> {
+    if (!append && !hasActiveCustomFilters()) {
+      customSearchStarted = true;
+      customAlerts = [];
+      customTotalResults = 0;
+      customErrorMessage = "Choose at least one search option before searching.";
+      return;
+    }
+
+    if (customDateFrom && customDateTo && customDateFrom > customDateTo) {
+      customSearchStarted = true;
+      customAlerts = [];
+      customTotalResults = 0;
+      customErrorMessage = "Start date must be earlier than end date.";
+      return;
+    }
+
+    if (append) {
+      if (customLoading || customLoadingMore) return;
+      customLoadingMore = true;
+    } else {
+      customLoading = true;
+      customSearchStarted = true;
+    }
+
+    customErrorMessage = "";
+    const requestNonce = ++customFetchNonce;
+
+    try {
+      const apiKey = import.meta.env.PUBLIC_OPEN_FDA_API_KEY;
+      const { alerts, totalResults } = await loadCustomEnforcementAlerts(
+        buildCustomFilters(),
+        apiKey,
+        append ? customAlerts.length : 0,
+      );
+
+      if (requestNonce !== customFetchNonce) return;
+
+      customTotalResults = totalResults;
+      customAlerts = append ? mergeUniqueAlerts(customAlerts, alerts) : alerts;
+
+      if (alerts.length > 0) {
+        void prefetchProductImages(alerts);
+      }
+    } catch (error) {
+      if (requestNonce !== customFetchNonce) return;
+      if (!append) {
+        customErrorMessage = error instanceof Error ? error.message : "Failed to load custom FDA enforcement alerts.";
+      }
+    } finally {
+      if (requestNonce === customFetchNonce) {
+        if (append) {
+          customLoadingMore = false;
+        } else {
+          customLoading = false;
+        }
+      }
+    }
+  }
+
+  function submitCustomSearch(event: SubmitEvent): void {
+    event.preventDefault();
+    customAlerts = [];
+    customTotalResults = 0;
+    void refreshCustomAlerts();
+  }
+
+  function clearCustomSearch(): void {
+    customLocation = "";
+    customKeywords = "";
+    customDateFrom = "";
+    customDateTo = "";
+    customSearchStarted = false;
+    customAlerts = [];
+    customTotalResults = 0;
+    customErrorMessage = "";
+  }
+
   function loadMoreDisplayedAlerts(): void {
+    if (activeTab === "custom") {
+      if (customAlerts.length >= customTotalResults) return;
+      void refreshCustomAlerts({ append: true });
+      return;
+    }
+
     if (!localStateCode || localAlerts.length >= localTotalResults) return;
     void refreshLocalAlerts(localStateCode, { append: true });
   }
@@ -202,16 +327,22 @@
 
   async function openRecallDetails(alert: EnforcementAlert): Promise<void> {
     let locationLabel: string | undefined;
-    const pref = await getPreference<LocationPreference>(PREF_KEYS.location);
-    locationLabel =
-      localStateCode === "ALL"
-        ? "All States"
-        : pref?.label || pref?.stateCode || recallState.localAlertsCache?.stateCode;
+    if (activeTab === "custom") {
+      const filters = buildCustomFilters();
+      const searchLabel = [filters.location, filters.keywords].filter(Boolean).join(" · ");
+      locationLabel = searchLabel || "Custom Search";
+    } else {
+      const pref = await getPreference<LocationPreference>(PREF_KEYS.location);
+      locationLabel =
+        localStateCode === "ALL"
+          ? "All States"
+          : pref?.label || pref?.stateCode || recallState.localAlertsCache?.stateCode;
+    }
 
     recallState.recallListContext = {
       alerts: displayedAlerts,
       sourceRoute: "/",
-      activeTab: "local",
+      activeTab,
       locationLabel,
     };
     await goto(`/recalls/${encodeURIComponent(alert.recall_number)}`);
@@ -234,6 +365,11 @@
       } else if (localStateCode) {
         void refreshLocalAlerts(localStateCode);
       }
+      return;
+    }
+
+    if (activeTab === "custom" && customSearchStarted && customAlerts.length === 0 && hasActiveCustomFilters()) {
+      void refreshCustomAlerts();
     }
   }
 
@@ -308,6 +444,61 @@
 
   {#if activeTab === "local"}
     <LocationBar initialStateCode={localStateCode} onStateChange={onLocalStateChange} />
+  {:else if activeTab === "custom"}
+    <form class="custom-filters" onsubmit={submitCustomSearch}>
+      <div class="custom-filters__grid">
+        <label class="custom-filters__field">
+          <span class="custom-filters__label">Location</span>
+          <input
+            type="text"
+            placeholder="State, city, or distribution"
+            value={customLocation}
+            oninput={(event) => {
+              customLocation = (event.currentTarget as HTMLInputElement).value;
+            }}
+          />
+        </label>
+
+        <label class="custom-filters__field">
+          <span class="custom-filters__label">Keywords</span>
+          <input
+            type="text"
+            placeholder="Product, reason, or firm"
+            value={customKeywords}
+            oninput={(event) => {
+              customKeywords = (event.currentTarget as HTMLInputElement).value;
+            }}
+          />
+        </label>
+
+        <label class="custom-filters__field">
+          <span class="custom-filters__label">From date</span>
+          <input
+            type="date"
+            value={customDateFrom}
+            oninput={(event) => {
+              customDateFrom = (event.currentTarget as HTMLInputElement).value;
+            }}
+          />
+        </label>
+
+        <label class="custom-filters__field">
+          <span class="custom-filters__label">To date</span>
+          <input
+            type="date"
+            value={customDateTo}
+            oninput={(event) => {
+              customDateTo = (event.currentTarget as HTMLInputElement).value;
+            }}
+          />
+        </label>
+      </div>
+
+      <div class="custom-filters__actions">
+        <button class="btn-ghost" type="button" onclick={clearCustomSearch}>Clear</button>
+        <button class="btn-filled" type="submit" disabled={customLoading}>Search</button>
+      </div>
+    </form>
   {/if}
 
   <main class="content">
@@ -317,7 +508,7 @@
       {errorMessage}
       {hasMore}
       {isLoadingMore}
-      onRetry={() => refreshLocalAlerts(localStateCode || "ALL")}
+      onRetry={() => activeTab === "custom" ? refreshCustomAlerts() : refreshLocalAlerts(localStateCode || "ALL")}
       onSelect={openRecallDetails}
       onLoadMore={loadMoreDisplayedAlerts}
     />
@@ -386,6 +577,118 @@
     min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .custom-filters {
+    padding: 12px 16px;
+    background: rgba(242, 242, 247, 0.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 0.5px solid rgba(60, 60, 67, 0.2);
+    display: grid;
+    gap: 10px;
+  }
+
+  .custom-filters__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .custom-filters__field {
+    display: grid;
+    gap: 4px;
+  }
+
+  .custom-filters__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(60, 60, 67, 0.8);
+  }
+
+  .custom-filters__field input {
+    border: 1px solid rgba(60, 60, 67, 0.22);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 14px;
+    background: #fff;
+    color: #000;
+    min-height: 36px;
+  }
+
+  .custom-filters__field input:focus-visible {
+    outline: 2px solid #007aff;
+    outline-offset: 1px;
+    border-color: transparent;
+  }
+
+  .custom-filters__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(60, 60, 67, 0.3);
+    background: transparent;
+    color: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-filled {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: none;
+    background: #007aff;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-filled:disabled {
+    opacity: 0.65;
+    cursor: default;
+  }
+
+  @media (max-width: 520px) {
+    .custom-filters__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .custom-filters {
+      background: rgba(28, 28, 30, 0.9);
+      border-bottom-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .custom-filters__label {
+      color: rgba(235, 235, 245, 0.8);
+    }
+
+    .custom-filters__field input {
+      background: #2c2c2e;
+      border-color: rgba(235, 235, 245, 0.22);
+      color: #fff;
+    }
+
+    .btn-ghost {
+      border-color: rgba(235, 235, 245, 0.26);
+    }
   }
 
 </style>

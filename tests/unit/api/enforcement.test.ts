@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { loadLatestEnforcementAlerts, loadLocalizedEnforcementAlerts, loadEnforcementAlertByRecallNumber } from "$lib/api/enforcement";
+import {
+  loadLatestEnforcementAlerts,
+  loadLocalizedEnforcementAlerts,
+  loadEnforcementAlertByRecallNumber,
+  loadCustomEnforcementAlerts,
+} from "$lib/api/enforcement";
 import type { EnforcementResponse, EnforcementAlert } from "$lib/types";
 
 globalThis.fetch = vi.fn();
@@ -318,6 +323,121 @@ describe("enforcement API", () => {
       const callUrl = mockFetch.mock.calls[0][0] as string;
       expect(callUrl).toContain("recall_number");
       expect(callUrl).toContain("F-1234");
+    });
+  });
+
+  describe("loadCustomEnforcementAlerts", () => {
+    it("builds location, keywords and date range query", async () => {
+      const mockFetch = vi.mocked(fetch);
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify(mockResponse), { status: 200 })
+      );
+
+      await loadCustomEnforcementAlerts({
+        location: "California",
+        keywords: "salmonella lettuce",
+        reportDateFrom: "2024-01-01",
+        reportDateTo: "2024-12-31",
+      });
+
+      const callUrl = mockFetch.mock.calls[0][0] as string;
+      const params = new URLSearchParams(callUrl.split("?")[1]);
+      const search = params.get("search") ?? "";
+
+      expect(search).toContain("city:*California*");
+      expect(search).toContain("product_description:*salmonella*");
+      expect(search).toContain("product_description:*lettuce*");
+      expect(search).toContain("report_date:[20240101 TO 20241231]");
+    });
+
+    it("supports partial date range with only start date", async () => {
+      const mockFetch = vi.mocked(fetch);
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify(mockResponse), { status: 200 })
+      );
+
+      await loadCustomEnforcementAlerts({
+        keywords: "milk",
+        reportDateFrom: "20240101",
+      });
+
+      const callUrl = mockFetch.mock.calls[0][0] as string;
+      const params = new URLSearchParams(callUrl.split("?")[1]);
+      const search = params.get("search") ?? "";
+
+      expect(search).toContain("report_date:[20240101 TO 29991231]");
+    });
+
+    it("supports partial date range with only end date", async () => {
+      const mockFetch = vi.mocked(fetch);
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify(mockResponse), { status: 200 })
+      );
+
+      await loadCustomEnforcementAlerts({
+        location: "TX",
+        reportDateTo: "20241231",
+      });
+
+      const callUrl = mockFetch.mock.calls[0][0] as string;
+      const params = new URLSearchParams(callUrl.split("?")[1]);
+      const search = params.get("search") ?? "";
+
+      expect(search).toContain("report_date:[19000101 TO 20241231]");
+    });
+
+    it("swaps date range bounds when start is after end", async () => {
+      const mockFetch = vi.mocked(fetch);
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify(mockResponse), { status: 200 })
+      );
+
+      await loadCustomEnforcementAlerts({
+        reportDateFrom: "2024-12-31",
+        reportDateTo: "2024-01-01",
+      });
+
+      const callUrl = mockFetch.mock.calls[0][0] as string;
+      const params = new URLSearchParams(callUrl.split("?")[1]);
+      const search = params.get("search") ?? "";
+
+      expect(search).toContain("report_date:[20240101 TO 20241231]");
+    });
+
+    it("omits search param when no filters are provided", async () => {
+      const mockFetch = vi.mocked(fetch);
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify(mockResponse), { status: 200 })
+      );
+
+      await loadCustomEnforcementAlerts({});
+
+      const callUrl = mockFetch.mock.calls[0][0] as string;
+      expect(callUrl).not.toContain("search=");
+    });
+
+    it("includes api_key and pagination for custom search", async () => {
+      const mockFetch = vi.mocked(fetch);
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify(mockResponse), { status: 200 })
+      );
+
+      await loadCustomEnforcementAlerts({ keywords: "eggs" }, "test-key", 40);
+
+      const callUrl = mockFetch.mock.calls[0][0] as string;
+      expect(callUrl).toContain("api_key=test-key");
+      expect(callUrl).toContain("skip=40");
+    });
+
+    it("throws when custom search API response is not ok", async () => {
+      const mockFetch = vi.mocked(fetch);
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "bad request" }), { status: 400 })
+      );
+
+      await expect(
+        loadCustomEnforcementAlerts({ keywords: "eggs" })
+      ).rejects.toThrow("FDA API request failed (400)");
     });
   });
 });
