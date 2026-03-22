@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { extractProductName, formatDate, formatLocation } from "./utils";
+import { extractProductName, formatDate, formatLocation } from "$lib/utils";
 
 describe("formatDate", () => {
   it("returns Unknown date for empty values", () => {
