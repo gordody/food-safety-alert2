@@ -18,11 +18,21 @@ describe("formatDate", () => {
     expect(formatted).not.toBe("Unknown date");
     expect(formatted).toContain("2024");
   });
+
+  it("returns Unknown date for out-of-range year", () => {
+    // Year 275761 and beyond cause NaN in Date.getTime()
+    expect(formatDate("2757611231")).toBe("Unknown date");
+  });
 });
 
 describe("extractProductName", () => {
   it("returns fallback for empty product description", () => {
     expect(extractProductName("")).toBe("FDA Enforcement Alert");
+  });
+
+  it("returns fallback for null-like values", () => {
+    expect(extractProductName(null as any)).toBe("FDA Enforcement Alert");
+    expect(extractProductName(undefined as any)).toBe("FDA Enforcement Alert");
   });
 
   it("extracts text up to the first non-alpha character after the first 5 chars", () => {
@@ -41,6 +51,20 @@ describe("extractProductName", () => {
   it("truncates to 50 characters with ellipsis when there is no delimiter and text is long", () => {
     const input = "A".repeat(55);
     expect(extractProductName(input)).toBe(`${"A".repeat(50)}...`);
+  });
+
+  it("returns product name with only whitespace padding trimmed", () => {
+    expect(extractProductName("  APPLE  JUICE  ")).toBe("APPLE  JUICE");
+  });
+
+  it("returns fallback when product description is only whitespace", () => {
+    expect(extractProductName("     ")).toBe("FDA Enforcement Alert");
+  });
+
+  it("returns product name that ends with alphanumeric", () => {
+    // "ABCDE" (5 chars) + "FGH123" - first digit "1" at index 3 of trailingSegment (index 8 overall)
+    // So it extracts "ABCDE" + "FGH" = "ABCDEFGH"
+    expect(extractProductName("ABCDEFGH123")).toBe("ABCDEFGH");
   });
 });
 
@@ -61,5 +85,31 @@ describe("formatLocation", () => {
 
   it("returns fallback when all location fields are missing", () => {
     expect(formatLocation()).toBe("Location not provided");
+  });
+
+  it("handles partial geographic data (city and state only)", () => {
+    expect(formatLocation("Boston", "MA")).toBe("Boston, MA");
+  });
+
+  it("handles partial geographic data (state and country only)", () => {
+    expect(formatLocation(undefined, "CA", "USA")).toBe("CA, USA");
+  });
+
+  it("handles single city with distribution pattern", () => {
+    expect(formatLocation("Denver", undefined, undefined, "Mountain region")).toBe(
+      "Denver | Mountain region"
+    );
+  });
+
+  it("ignores empty string values and filters them out", () => {
+    expect(formatLocation("", "TX", "")).toBe("TX");
+  });
+
+  it("trims whitespace from geographic values", () => {
+    expect(formatLocation("  Austin  ", "  TX  ", "  USA  ")).toBe("Austin, TX, USA");
+  });
+
+  it("trims whitespace from distribution pattern", () => {
+    expect(formatLocation(undefined, undefined, undefined, "  Nationwide  ")).toBe("Nationwide");
   });
 });
