@@ -5,9 +5,10 @@
     open: boolean;
     onClose: () => void;
     content: AboutContent;
+    paneId?: string;
   };
 
-  const { open, onClose, content }: Props = $props();
+  const { open, onClose, content, paneId = "about-pane" }: Props = $props();
 
   $effect(() => {
     if (!open || typeof document === "undefined") return;
@@ -40,13 +41,13 @@
 {/if}
 
 <div
-  id="about-pane"
+  id={paneId}
   class:about-pane-open={open}
   class="about-pane"
   aria-hidden={!open}
   role="dialog"
   aria-modal="true"
-  aria-label={`About ${content.appName}`}
+  aria-label={` `}
 >
   <div class="about-header">
     <div>

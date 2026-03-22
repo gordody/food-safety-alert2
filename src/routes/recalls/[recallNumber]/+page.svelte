@@ -4,6 +4,7 @@
   import AboutPane from "$lib/components/AboutPane.svelte";
   import BottomTabBar from "$lib/components/BottomTabBar.svelte";
   import { aboutContent } from "$lib/constants/aboutContent";
+  import { helpContent } from "$lib/constants/helpContent";
   import { PREF_KEYS, setPreference } from "$lib/preferences";
   import { recallState } from "$lib/stores/recallState.svelte";
   import type { EnforcementAlert } from "$lib/types";
@@ -21,6 +22,7 @@
   const navContext = $derived(recallState.recallListContext);
   const effectiveAlerts = $derived(navContext?.alerts ?? data.defaultAlerts);
   let aboutOpen = $state(false);
+  let helpOpen = $state(false);
   let activeRecallNumber = $state("");
   let resolvedImageUrls = $state<Record<string, string | null>>({});
   let resolvingImages = $state<Record<string, boolean>>({});
@@ -261,11 +263,21 @@
   }
 
   function openAbout(): void {
+    helpOpen = false;
     aboutOpen = true;
   }
 
   function closeAbout(): void {
     aboutOpen = false;
+  }
+
+  function openHelp(): void {
+    aboutOpen = false;
+    helpOpen = true;
+  }
+
+  function closeHelp(): void {
+    helpOpen = false;
   }
 </script>
 
@@ -365,9 +377,11 @@
       activeItem={activeTab}
       onSelect={onBottomTabSelect}
       onOpenAbout={openAbout}
+      onOpenHelp={openHelp}
     />
 
-    <AboutPane open={aboutOpen} onClose={closeAbout} content={aboutContent} />
+    <AboutPane open={aboutOpen} onClose={closeAbout} content={aboutContent} paneId="about-pane-detail" />
+    <AboutPane open={helpOpen} onClose={closeHelp} content={helpContent} paneId="help-pane-detail" />
   {/if}
 </div>
 

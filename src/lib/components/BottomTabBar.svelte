@@ -10,6 +10,7 @@
     activeItem: string;
     onSelect?: (id: string) => void;
     onOpenAbout?: () => void;
+    onOpenHelp?: () => void;
     ariaLabel?: string;
   };
 
@@ -18,6 +19,7 @@
     activeItem,
     onSelect,
     onOpenAbout,
+    onOpenHelp,
     ariaLabel = "Main navigation"
   }: Props = $props();
 
@@ -38,6 +40,11 @@
     onOpenAbout?.();
   }
 
+  function handleOpenHelp(): void {
+    moreMenuOpen = false;
+    onOpenHelp?.();
+  }
+
   function closeMenu(): void {
     moreMenuOpen = false;
   }
@@ -55,6 +62,7 @@
   {#if moreMenuOpen}
     <div class="more-menu" role="menu" aria-label="More actions">
       <button type="button" class="more-menu-item" role="menuitem" onclick={handleOpenAbout}>About</button>
+      <button type="button" class="more-menu-item" role="menuitem" onclick={handleOpenHelp}>Help</button>
     </div>
   {/if}
 

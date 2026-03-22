@@ -9,6 +9,7 @@
   import LocationBar from "$lib/components/LocationBar.svelte";
   import NavBar from "$lib/components/NavBar.svelte";
   import { aboutContent } from "$lib/constants/aboutContent";
+  import { helpContent } from "$lib/constants/helpContent";
   import { PREF_KEYS, getPreference, setPreference } from "$lib/preferences";
   import { recallState } from "$lib/stores/recallState.svelte";
   import type { EnforcementAlert } from "$lib/types";
@@ -27,6 +28,7 @@
   type Tab = "all" | "local" | "custom" | "more";
   let activeTab = $state<Tab>("all");
   let aboutOpen = $state(false);
+  let helpOpen = $state(false);
 
   // isLoading reflects only the loading state of the currently active tab.
   const isLoading = $derived(activeTab === "local" ? localLoading : allLoading);
@@ -108,11 +110,21 @@
   }
 
   function openAbout(): void {
+    helpOpen = false;
     aboutOpen = true;
   }
 
   function closeAbout(): void {
     aboutOpen = false;
+  }
+
+  function openHelp(): void {
+    aboutOpen = false;
+    helpOpen = true;
+  }
+
+  function closeHelp(): void {
+    helpOpen = false;
   }
 
   async function openRecallDetails(alert: EnforcementAlert): Promise<void> {
@@ -227,9 +239,11 @@
     activeItem={activeTab}
     onSelect={onTabSelect}
     onOpenAbout={openAbout}
+    onOpenHelp={openHelp}
   />
 
-  <AboutPane open={aboutOpen} onClose={closeAbout} content={aboutContent} />
+  <AboutPane open={aboutOpen} onClose={closeAbout} content={aboutContent} paneId="about-pane-home" />
+  <AboutPane open={helpOpen} onClose={closeHelp} content={helpContent} paneId="help-pane-home" />
 </div>
 
 <style>
